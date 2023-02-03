@@ -1,0 +1,492 @@
+{
+  "manifestVersion": "3.2",
+  "admin": {
+    "address": "0x25870712918249e9699dCa42630ceB3572A0750c",
+    "txHash": "0x797d0cca385ad35ea9995d6b3e572f1324f401d412e08465782ea216cfecc570"
+  },
+  "proxies": [
+    {
+      "address": "0x8eA9a18A98E5cDbE93cacEa82Ea3e9c2CB8Dc520",
+      "txHash": "0x1703bd3e322e9fa85889fb4732224d39f3b1e470bdbf0a782e49b7ffe4bd8d64",
+      "kind": "transparent"
+    },
+    {
+      "address": "0x503bA8612D1cfcF8bE5BD9Aa96467c4a15E49276",
+      "txHash": "0x9648afdd8c939a00b0b5375da352dcb28f21d04a592f96dceee2f695d50774fe",
+      "kind": "transparent"
+    },
+    {
+      "address": "0xeBbD0b526D084424c482Eac2b65C3F08CDA776FD",
+      "txHash": "0x5311ee71f7585e4f87b20fe19b17b66730bf1499189ea219b9988c30f3afef77",
+      "kind": "transparent"
+    },
+    {
+      "address": "0xA1cFB54c17D4d4eD6Fe59817e86D4280f8bE18B0",
+      "txHash": "0x4f4a611679088fec48af0358af730c18ceac4e65cff021ba227e4d83e208187e",
+      "kind": "transparent"
+    },
+    {
+      "address": "0x13FDC80Db6321975d68e0c91aeaf4634F7fEC6C0",
+      "txHash": "0x03d6654b21cb08cb6c1ccac543276c6ab94f0d81eb8a2c82b11cbb27a63dfc4b",
+      "kind": "transparent"
+    },
+    {
+      "address": "0xfFFF6e845c830Bc14a4E21499ceDe8c7E8366c35",
+      "txHash": "0xd903a26b5a5ead400321a779cf7435736dfa17fbd60328db41c73facc38c0117",
+      "kind": "transparent"
+    },
+    {
+      "address": "0xC598c9EA959F3020980e4828f297F95dcF2A18cA",
+      "txHash": "0x02693037477d59cd6e733fb152a0be6c94d8e4bede721c24a48eee3d16ba3be3",
+      "kind": "transparent"
+    }
+  ],
+  "impls": {
+    "3c782a35a6a4d548bcb98a4d2f08c4a81c0474f762c9bd15cae591ac84f50e60": {
+      "address": "0x0AEadCd6a7D8EdB6Ff9b043dEB023F7617301d33",
+      "txHash": "0x8563edd0a0022cd001019e8df7a5f24dfa1849898fed3d2026089d968aed72d2",
+      "layout": {
+        "solcVersion": "0.8.9",
+        "storage": [
+          {
+            "label": "_initialized",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_uint8",
+            "contract": "Initializable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:62",
+            "retypedFrom": "bool"
+          },
+          {
+            "label": "_initializing",
+            "offset": 1,
+            "slot": "0",
+            "type": "t_bool",
+            "contract": "Initializable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:67"
+          },
+          {
+            "label": "transactionIdcounter",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_uint256",
+            "contract": "OCPP",
+            "src": "contracts/OCPP.sol:131"
+          },
+          {
+            "label": "stationIndex",
+            "offset": 0,
+            "slot": "2",
+            "type": "t_uint256",
+            "contract": "OCPP",
+            "src": "contracts/OCPP.sol:132"
+          },
+          {
+            "label": "Transactions",
+            "offset": 0,
+            "slot": "3",
+            "type": "t_mapping(t_uint256,t_struct(Fields)486_storage)",
+            "contract": "OCPP",
+            "src": "contracts/OCPP.sol:135"
+          },
+          {
+            "label": "UserToTransaction",
+            "offset": 0,
+            "slot": "4",
+            "type": "t_mapping(t_uint256,t_uint256)",
+            "contract": "OCPP",
+            "src": "contracts/OCPP.sol:136"
+          },
+          {
+            "label": "Stations",
+            "offset": 0,
+            "slot": "5",
+            "type": "t_mapping(t_uint256,t_struct(Fields)679_storage)",
+            "contract": "OCPP",
+            "src": "contracts/OCPP.sol:137"
+          },
+          {
+            "label": "ClientUrlById",
+            "offset": 0,
+            "slot": "6",
+            "type": "t_mapping(t_string_memory_ptr,t_uint256)",
+            "contract": "OCPP",
+            "src": "contracts/OCPP.sol:138"
+          },
+          {
+            "label": "MeterValuesData",
+            "offset": 0,
+            "slot": "7",
+            "type": "t_mapping(t_uint256,t_array(t_struct(MeterValue)501_storage)dyn_storage)",
+            "contract": "OCPP",
+            "src": "contracts/OCPP.sol:139"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_struct(Connectors)538_storage)dyn_storage": {
+            "label": "struct StationStruct.Connectors[]",
+            "numberOfBytes": "32"
+          },
+          "t_array(t_struct(MeterValue)501_storage)dyn_storage": {
+            "label": "struct TransactionStruct.MeterValue[]",
+            "numberOfBytes": "32"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_int256": {
+            "label": "int256",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_string_memory_ptr,t_uint256)": {
+            "label": "mapping(string => uint256)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_array(t_struct(MeterValue)501_storage)dyn_storage)": {
+            "label": "mapping(uint256 => struct TransactionStruct.MeterValue[])",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_struct(Fields)486_storage)": {
+            "label": "mapping(uint256 => struct TransactionStruct.Fields)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_struct(Fields)679_storage)": {
+            "label": "mapping(uint256 => struct StationStruct.Fields)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_uint256)": {
+            "label": "mapping(uint256 => uint256)",
+            "numberOfBytes": "32"
+          },
+          "t_string_memory_ptr": {
+            "label": "string",
+            "numberOfBytes": "32"
+          },
+          "t_string_storage": {
+            "label": "string",
+            "numberOfBytes": "32"
+          },
+          "t_struct(Connectors)538_storage": {
+            "label": "struct StationStruct.Connectors",
+            "members": [
+              {
+                "label": "Price",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "ConnectorId",
+                "type": "t_int256",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "connectorType",
+                "type": "t_int256",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "PriceFor",
+                "type": "t_int256",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "Status",
+                "type": "t_int256",
+                "offset": 0,
+                "slot": "4"
+              },
+              {
+                "label": "ErrorCode",
+                "type": "t_int256",
+                "offset": 0,
+                "slot": "5"
+              },
+              {
+                "label": "IsHaveLock",
+                "type": "t_bool",
+                "offset": 0,
+                "slot": "6"
+              }
+            ],
+            "numberOfBytes": "224"
+          },
+          "t_struct(Fields)486_storage": {
+            "label": "struct TransactionStruct.Fields",
+            "members": [
+              {
+                "label": "initiator",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "totalPrice",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "totalImportRegisterWh",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "isPaidToOwner",
+                "type": "t_bool",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "idtag",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "4"
+              },
+              {
+                "label": "MeterStart",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "5"
+              },
+              {
+                "label": "LastMeter",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "6"
+              },
+              {
+                "label": "MeterStop",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "7"
+              },
+              {
+                "label": "DateStart",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "8"
+              },
+              {
+                "label": "DateStop",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "9"
+              },
+              {
+                "label": "ConnectorPrice",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "10"
+              },
+              {
+                "label": "StationId",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "11"
+              },
+              {
+                "label": "ConnectorId",
+                "type": "t_int256",
+                "offset": 0,
+                "slot": "12"
+              },
+              {
+                "label": "State",
+                "type": "t_int256",
+                "offset": 0,
+                "slot": "13"
+              },
+              {
+                "label": "ConnectorPriceFor",
+                "type": "t_int256",
+                "offset": 0,
+                "slot": "14"
+              }
+            ],
+            "numberOfBytes": "480"
+          },
+          "t_struct(Fields)679_storage": {
+            "label": "struct StationStruct.Fields",
+            "members": [
+              {
+                "label": "ClientUrl",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "Owner",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "Name",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "LocationLat",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "LocationLon",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "4"
+              },
+              {
+                "label": "Address",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "5"
+              },
+              {
+                "label": "Time",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "6"
+              },
+              {
+                "label": "ChargePointModel",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "7"
+              },
+              {
+                "label": "ChargePointVendor",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "8"
+              },
+              {
+                "label": "ChargeBoxSerialNumber",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "9"
+              },
+              {
+                "label": "FirmwareVersion",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "10"
+              },
+              {
+                "label": "IsActive",
+                "type": "t_bool",
+                "offset": 0,
+                "slot": "11"
+              },
+              {
+                "label": "State",
+                "type": "t_bool",
+                "offset": 1,
+                "slot": "11"
+              },
+              {
+                "label": "Url",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "12"
+              },
+              {
+                "label": "Type",
+                "type": "t_int256",
+                "offset": 0,
+                "slot": "13"
+              },
+              {
+                "label": "OcppInterval",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "14"
+              },
+              {
+                "label": "Heartbeat",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "15"
+              },
+              {
+                "label": "Connectors",
+                "type": "t_array(t_struct(Connectors)538_storage)dyn_storage",
+                "offset": 0,
+                "slot": "16"
+              }
+            ],
+            "numberOfBytes": "544"
+          },
+          "t_struct(MeterValue)501_storage": {
+            "label": "struct TransactionStruct.MeterValue",
+            "members": [
+              {
+                "label": "TransactionId",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "ConnectorId",
+                "type": "t_int256",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "EnergyActiveImportRegister_Wh",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "CurrentImport_A",
+                "type": "t_int256",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "CurrentOffered_A",
+                "type": "t_int256",
+                "offset": 0,
+                "slot": "4"
+              },
+              {
+                "label": "PowerActiveImport_W",
+                "type": "t_int256",
+                "offset": 0,
+                "slot": "5"
+              },
+              {
+                "label": "Voltage_V",
+                "type": "t_int256",
+                "offset": 0,
+                "slot": "6"
+              }
+            ],
+            "numberOfBytes": "224"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          },
+          "t_uint8": {
+            "label": "uint8",
+            "numberOfBytes": "1"
+          }
+        }
+      }
+    }
+  }
+}

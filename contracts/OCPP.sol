@@ -1,130 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-library TransactionStruct {
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+//import "hardhat/console.sol";
+import "./OCPPStructs.sol";
 
-    struct Fields {
-        address initiator;
-        uint256 totalPrice;
-        uint256 totalImportRegisterWh;
-        bool isPaidToOwner;
-        uint256 idtag;
-        uint256 MeterStart;
-        uint256 LastMeter;
-        uint256 MeterStop;
-        uint256 DateStart;
-        uint256 DateStop;
-        uint256 ConnectorPrice;
-        uint256 StationId;
-        int ConnectorId;
-        int State;
-        int ConnectorPriceFor;
-        
-    }
+contract OCPP is Initializable {
 
-    struct MeterValue {
-        uint256 TransactionId;
-        int ConnectorId;
-        uint256 EnergyActiveImportRegister_Wh;
-        int CurrentImport_A;
-        int CurrentOffered_A;
-        int PowerActiveImport_W;
-        int Voltage_V;
-    }
-
-    // For Fields.State
-    int constant New = 1;
-    int constant Preparing = 2;
-    int constant Charging = 3;
-    int constant Finished = 4;
-    int constant Error = 5;
-
-    // For Fields.ConnectorPriceFor
-    int constant Kw = 1;
-    int constant Time = 2;
     
-}
-
-
-library StationStruct {
-
-    struct Connectors {
-        uint256 Price;        
-        int ConnectorId;
-        int connectorType; //
-        int PriceFor;
-        int Status; // 1 - avaliable, 2 - preparing, 3 - charging, 4 - finished, 5 - error
-        int ErrorCode;
-        bool IsHaveLock;
-    }
-
-    int constant Type1 = 1;
-    int constant Type2 = 2;
-    int constant Chademo = 3;
-    int constant CCS1 = 4;
-    int constant CCS2 = 5;
-    int constant GBTDC = 6;
-    int constant GBTAC = 7;
-
-    int constant ConnectorLockFailure = 1;
-    int constant EVCommunicationError = 2;
-    int constant GroundFailure = 3;
-    int constant HighTemperature = 4;
-    int constant InternalError = 5;
-    int constant LocalListConflict = 6;
-    int constant NoError = 7;
-    int constant OtherError = 8;
-    int constant OverCurrentFailure = 9;
-    int constant PowerMeterFailure = 10;
-    int constant PowerSwitchFailure = 11;
-    int constant ReaderFailure = 12;
-    int constant ResetFailure = 13;
-    int constant UnderVoltage = 14;
-    int constant OverVoltage = 15;
-    int constant WeakSignalint = 16;
-
-
-    int constant Available =  1;
-    int constant Preparing = 2;
-    int constant Charging = 3;
-    int constant SuspendedEVSE = 4;
-    int constant SuspendedEV = 5;
-    int constant Finishing = 6;
-    int constant Reserved = 7;
-    int constant Unavailable = 8;
-    int constant Faulted = 9;
-
-
-    bool constant Active = true;
-    bool constant InActive = false;
-
-    struct Fields {
-        string ClientUrl;
-        address Owner;
-        string Name;
-        string LocationLat;
-        string LocationLon;
-        string Address;
-        string Time;
-        string ChargePointModel;
-        string ChargePointVendor;
-        string ChargeBoxSerialNumber;
-        string FirmwareVersion;
-        bool IsActive;
-        bool State; 
-        string Url;
-        int Type;
-        uint256 OcppInterval;
-        uint256 Heartbeat;
-        Connectors[] Connectors;
-    }
-}
-
-
-contract OCPP {
 
     uint256 transactionIdcounter;
     uint256 stationIndex;
+
 
     mapping (uint256 => TransactionStruct.Fields) Transactions;
     mapping (uint256 => uint256) UserToTransaction;
@@ -141,17 +28,22 @@ contract OCPP {
     event ChangeStateStation(uint256 indexed stationId, string clientUrl, bool state);
     event RemoteStartTransaction(string clientUrl, int connectorId, uint256 idtag, uint256 indexed transactionId);
     event MeterValues(string clientUrl, int connectorId, uint256 indexed transactionId, TransactionStruct.MeterValue  meterValue );
-    event RemoteStopTransaction(string clientUrl, uint256 indexed transactionId, int connectorId);
-    event RejectTransaction(uint256 indexed transactionId, string reason);
+    event RemoteStopTransaction(string clientUrl, uint256 indexed transactionId, int connectorId, uint256 idtag);
+    event RejectTransaction(uint256 indexed transactionId);
 
-    constructor() {
+    function initialize() public initializer {
         stationIndex = 0;
         transactionIdcounter = 0;
+        ClientUrlById["default"] = 0; 
     }
 
     function addStation(StationStruct.Fields calldata station) public returns(uint256){
-
-        require(station.Owner == msg.sender, "Station.Owner must much with msg.sender");
+  
+        
+        require(station.Owner == msg.sender, "owner_incorrect");
+             
+        if(ClientUrlById[station.ClientUrl] > 0)
+            revert("already_exist");
 
         stationIndex++;
         Stations[stationIndex] = station;
@@ -162,6 +54,10 @@ contract OCPP {
 
     function getStation(uint256 stationId) public view returns(StationStruct.Fields memory){
         StationStruct.Fields memory station = Stations[stationId];
+
+        if( station.Owner == address(0))
+            revert("station_not_found");
+
         return station;
     }
 
@@ -169,12 +65,23 @@ contract OCPP {
     function getStationByUrl(string memory clientUrl) public view returns(StationStruct.Fields memory){
         uint256 stationId = ClientUrlById[clientUrl];
         StationStruct.Fields memory station = Stations[stationId];
+        
+        if( station.Owner == address(0))
+            revert("station_not_found");
+        
         return station;
     }
 
 
     function setState(string memory clientUrl, bool state) public {
         uint256 stationId = ClientUrlById[clientUrl];
+        
+        if( Stations[stationId].Owner == address(0))
+            revert("station_not_found");
+        
+        if( Stations[stationId].Owner != msg.sender)
+            revert("access_denied");
+
         Stations[stationId].State = state;
         emit ChangeStateStation(stationId, clientUrl, state);
     }
@@ -190,10 +97,18 @@ contract OCPP {
                 return c;
             }
         }
+
+        revert("not_found");
     }
 
     function bootNotification(string memory clientUrl) public {
         uint256 stationId = ClientUrlById[clientUrl];
+        
+        if( Stations[stationId].Owner == address(0))
+            revert("station_not_found");
+
+        if( Stations[stationId].Owner != msg.sender)
+            revert("access_denied");
         
         if(Stations[stationId].IsActive){
            Stations[stationId].Heartbeat = block.timestamp; 
@@ -204,6 +119,12 @@ contract OCPP {
     function statusNotification(string memory clientUrl, int connectorId, int status, int errorCode) public {
         uint256 stationId = ClientUrlById[clientUrl];
 
+        if( Stations[stationId].Owner == address(0))
+            revert("station_not_found");
+
+        if( Stations[stationId].Owner != msg.sender)
+            revert("access_denied");
+        
         StationStruct.Fields memory station = Stations[stationId];
 
         for (uint256 index = 0; index < station.Connectors.length; index++) {
@@ -224,6 +145,14 @@ contract OCPP {
 
     function heartbeat(string memory clientUrl) public {
         uint256 stationId = ClientUrlById[clientUrl];
+
+        if( Stations[stationId].Owner == address(0))
+            revert("station_not_found");
+
+        if( Stations[stationId].Owner != msg.sender)
+            revert("access_denied");
+        
+
         Stations[stationId].Heartbeat = block.timestamp;
         emit Heartbeat(clientUrl, block.timestamp);
     }
@@ -234,8 +163,10 @@ contract OCPP {
 
 
 
-    function remoteStartTransaction(string memory clientUrl, int connectorId, uint256 idtag) public returns(uint256) {
-        uint256 stationId = ClientUrlById[clientUrl];
+    function remoteStartTransaction(string memory clientUrl, int connectorId, uint256 idtag) public  {
+        
+        uint256 stationId = ClientUrlById[clientUrl];              
+
         StationStruct.Connectors memory connector  = getConnector(stationId, connectorId);
         
         if(  (connector.Status == StationStruct.Available || connector.Status == StationStruct.SuspendedEVSE || connector.Status == StationStruct.Preparing ) && Stations[stationId].State == StationStruct.Active ) {
@@ -245,11 +176,11 @@ contract OCPP {
             UserToTransaction[idtag] = transactionIdcounter;
 
             Transactions[transactionIdcounter] = TransactionStruct.Fields({
-                initiator: msg.sender,
-                totalPrice: 0,
-                totalImportRegisterWh: 0,
-                isPaidToOwner: false,
-                idtag:idtag,
+                Initiator: msg.sender,
+                TotalPrice: 0,
+                TotalImportRegisterWh: 0,
+                IsPaidToOwner: false,
+                Idtag:idtag,
                 MeterStart:0,
                 MeterStop:0,
                 LastMeter:0,
@@ -264,18 +195,18 @@ contract OCPP {
 
             emit RemoteStartTransaction(clientUrl, connectorId, idtag, transactionIdcounter);
 
-            return transactionIdcounter;
+        }else{
+            revert("cannot_start_transaction");
         }
 
-        return 0;
     }
 
     function rejectTransaction(uint256 transactionId) public {
         Transactions[transactionId].State = TransactionStruct.Error;
-        UserToTransaction[Transactions[transactionId].idtag] = 0;
+        UserToTransaction[Transactions[transactionId].Idtag] = 0;
 
-        if(Transactions[transactionId].initiator == msg.sender)
-            emit RejectTransaction(transactionId, "Rejected");
+        if(Transactions[transactionId].Initiator == msg.sender)
+            emit RejectTransaction(transactionId);
     }
 
     function remoteStopTransaction(string memory clientUrl, uint256 idtag) public {
@@ -284,8 +215,8 @@ contract OCPP {
 
         StationStruct.Connectors memory connector  = getConnector(stationId, Transactions[transactionId].ConnectorId);
 
-        if(  connector.Status == StationStruct.Charging && Stations[stationId].State == StationStruct.Active && Transactions[transactionId].initiator == msg.sender) {
-            emit RemoteStopTransaction(clientUrl, transactionId, Transactions[transactionId].ConnectorId);
+        if(  (connector.Status == StationStruct.Charging || connector.Status == StationStruct.Preparing) && Stations[stationId].State == StationStruct.Active && Transactions[transactionId].Initiator == msg.sender) {
+            emit RemoteStopTransaction(clientUrl, transactionId, Transactions[transactionId].ConnectorId, idtag);
         }
         
     }
@@ -301,17 +232,23 @@ contract OCPP {
 
     function startTransaction(string memory clientUrl, uint256 tagId, uint256 dateStart, uint256 meterStart) public {
         uint256  transactionId =  UserToTransaction[tagId];
+
+        if( Transactions[transactionId].Initiator == address(0))
+            revert("transaction_not_found");
+
         Transactions[transactionId].MeterStart = meterStart;
         Transactions[transactionId].DateStart = dateStart;
         Transactions[transactionId].State = TransactionStruct.Preparing;
-        emit StartTransaction(clientUrl, transactionId, meterStart, dateStart);
+        emit StartTransaction(clientUrl, transactionId,  dateStart, meterStart);
     }
 
 
     function meterValues(string memory clientUrl, int connectorId,uint256 transactionId, TransactionStruct.MeterValue memory meterValue ) public {
+        uint256 stationId = ClientUrlById[clientUrl];
+        StationStruct.Connectors memory connector  = getConnector(stationId, connectorId);
 
-        if( Transactions[transactionId].initiator == msg.sender){
-            uint256 stationId = ClientUrlById[clientUrl];
+        if( Transactions[transactionId].Initiator == msg.sender && connector.Status == StationStruct.Charging){
+            
             Stations[stationId].Heartbeat = block.timestamp;
             Transactions[transactionId].State = TransactionStruct.Charging;
             Transactions[transactionId].LastMeter =  meterValue.EnergyActiveImportRegister_Wh;
@@ -322,19 +259,21 @@ contract OCPP {
     }
 
     function stopTransaction(string memory clientUrl, uint256 transactionId, uint256 dateStop, uint256 meterStop) public {
-        if( Transactions[transactionId].initiator == msg.sender ){
+        if( Transactions[transactionId].Initiator == msg.sender ){
             Transactions[transactionId].MeterStop = meterStop;
-            Transactions[transactionId].totalImportRegisterWh = Transactions[transactionId].MeterStop-Transactions[transactionId].MeterStart;
+            Transactions[transactionId].TotalImportRegisterWh = Transactions[transactionId].MeterStop-Transactions[transactionId].MeterStart;
             Transactions[transactionId].DateStop = dateStop;
             Transactions[transactionId].State = TransactionStruct.Finished;
-            UserToTransaction[Transactions[transactionId].idtag] = 0;
+            UserToTransaction[Transactions[transactionId].Idtag] = 0;
 
             if(  Transactions[transactionId].ConnectorPriceFor == TransactionStruct.Kw){
-                Transactions[transactionId].totalPrice = (Transactions[transactionId].totalImportRegisterWh/1000)*Transactions[transactionId].ConnectorPrice;
+                Transactions[transactionId].TotalPrice = (Transactions[transactionId].TotalImportRegisterWh/1000)*Transactions[transactionId].ConnectorPrice;
             }
             
 
-            emit StopTransaction(clientUrl, transactionId, meterStop, dateStop);
+            emit StopTransaction(clientUrl, transactionId, dateStop, meterStop);
+        }else{
+            revert("access_denied");
         }
     }
 }
