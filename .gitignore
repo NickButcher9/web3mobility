@@ -6,7 +6,7 @@ typechain
 typechain-types
 .mnemonic
 proxy_adresses.json
-
+.openzeppelin
 #Hardhat files
 cache
 artifacts
