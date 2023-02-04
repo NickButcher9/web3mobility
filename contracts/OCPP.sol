@@ -2,7 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-//import "hardhat/console.sol";
+import "hardhat/console.sol";
 import "./OCPPStructs.sol";
 
 contract OCPP is Initializable {
@@ -12,9 +12,8 @@ contract OCPP is Initializable {
     uint256 transactionIdcounter;
     uint256 stationIndex;
 
-
     mapping (uint256 => TransactionStruct.Fields) Transactions;
-    mapping (uint256 => uint256) UserToTransaction;
+    mapping (string => uint256) UserToTransaction;
     mapping (uint256 => StationStruct.Fields)  Stations;
     mapping (string => uint256) ClientUrlById;
     mapping (uint256 => TransactionStruct.MeterValue[]) MeterValuesData;
@@ -25,17 +24,26 @@ contract OCPP is Initializable {
     event Heartbeat(string clientUrl, uint256 timestamp);
     event StartTransaction(string clientUrl, uint256 indexed transactionId, uint256 dateStart, uint256 meterStart);
     event StopTransaction(string clientUrl, uint256 indexed transactionId, uint256 dateStop, uint256 meterStop);
+    event CancelTransaction(string clientUrl, uint256 indexed transactionId);
     event ChangeStateStation(uint256 indexed stationId, string clientUrl, bool state);
-    event RemoteStartTransaction(string clientUrl, int connectorId, uint256 idtag, uint256 indexed transactionId);
+    event RemoteStartTransaction(string clientUrl, int connectorId, string idtag, uint256 indexed transactionId);
     event MeterValues(string clientUrl, int connectorId, uint256 indexed transactionId, TransactionStruct.MeterValue  meterValue );
-    event RemoteStopTransaction(string clientUrl, uint256 indexed transactionId, int connectorId, uint256 idtag);
+    event RemoteStopTransaction(string clientUrl, uint256 indexed transactionId, int connectorId, string idtag);
     event RejectTransaction(uint256 indexed transactionId);
 
     function initialize() public initializer {
         stationIndex = 0;
         transactionIdcounter = 0;
-        ClientUrlById["default"] = 0; 
     }
+
+
+    function getTransactionsCount() public view returns(uint256){
+        return transactionIdcounter;
+    }
+    function getStationsCount() public view returns(uint256){
+        return stationIndex;
+    }
+
 
     function addStation(StationStruct.Fields calldata station) public returns(uint256){
   
@@ -59,6 +67,16 @@ contract OCPP is Initializable {
             revert("station_not_found");
 
         return station;
+    }
+
+    function getStations() public view returns(StationStruct.Fields[] memory){
+        StationStruct.Fields[] memory ret = new StationStruct.Fields[](stationIndex);
+        for (uint256 index = 1; index <= stationIndex; index++) {
+            
+            ret[index-1] = Stations[index];
+        }
+
+        return ret;
     }
 
 
@@ -163,13 +181,13 @@ contract OCPP is Initializable {
 
 
 
-    function remoteStartTransaction(string memory clientUrl, int connectorId, uint256 idtag) public  {
+    function remoteStartTransaction(string memory clientUrl, int connectorId, string memory idtag) public  {
         
         uint256 stationId = ClientUrlById[clientUrl];              
 
         StationStruct.Connectors memory connector  = getConnector(stationId, connectorId);
         
-        if(  (connector.Status == StationStruct.Available || connector.Status == StationStruct.SuspendedEVSE || connector.Status == StationStruct.Preparing ) && Stations[stationId].State == StationStruct.Active ) {
+        if(  (connector.Status == StationStruct.Available || connector.Status == StationStruct.SuspendedEVSE || connector.Status == StationStruct.Preparing ) && Stations[stationId].State == StationStruct.Active && UserToTransaction[idtag] == 0 ) {
             
             transactionIdcounter++;
 
@@ -201,6 +219,10 @@ contract OCPP is Initializable {
 
     }
 
+    function getUserTransaction(string memory idtag) public view returns(uint256){
+        return UserToTransaction[idtag];
+    }
+
     function rejectTransaction(uint256 transactionId) public {
         Transactions[transactionId].State = TransactionStruct.Error;
         UserToTransaction[Transactions[transactionId].Idtag] = 0;
@@ -209,7 +231,7 @@ contract OCPP is Initializable {
             emit RejectTransaction(transactionId);
     }
 
-    function remoteStopTransaction(string memory clientUrl, uint256 idtag) public {
+    function remoteStopTransaction(string memory clientUrl, string memory idtag) public {
         uint256 stationId = ClientUrlById[clientUrl];
         uint256 transactionId = UserToTransaction[idtag];
 
@@ -225,12 +247,22 @@ contract OCPP is Initializable {
         return Transactions[id];
     }
 
-    function getTransactionByIdtag(uint256 tagId) public view returns(uint256){
+    function getTransactionByIdtag(string memory tagId) public view returns(uint256){
         uint256 transactionId =  UserToTransaction[tagId];
         return transactionId;
     }
 
-    function startTransaction(string memory clientUrl, uint256 tagId, uint256 dateStart, uint256 meterStart) public {
+    function getTransactions() public view returns(TransactionStruct.Fields[] memory){
+        TransactionStruct.Fields[] memory ret = new TransactionStruct.Fields[](transactionIdcounter);
+        for (uint256 index = 1; index <= stationIndex; index++) {
+            
+            ret[index-1] = Transactions[index];
+        }
+
+        return ret;
+    }    
+
+    function startTransaction(string memory clientUrl, string memory tagId, uint256 dateStart, uint256 meterStart) public {
         uint256  transactionId =  UserToTransaction[tagId];
 
         if( Transactions[transactionId].Initiator == address(0))
@@ -258,6 +290,10 @@ contract OCPP is Initializable {
 
     }
 
+    function getMeterValues(uint256 transactionId) public view returns(TransactionStruct.MeterValue[] memory){
+        return MeterValuesData[transactionId];
+    }
+
     function stopTransaction(string memory clientUrl, uint256 transactionId, uint256 dateStop, uint256 meterStop) public {
         if( Transactions[transactionId].Initiator == msg.sender ){
             Transactions[transactionId].MeterStop = meterStop;
@@ -276,4 +312,14 @@ contract OCPP is Initializable {
             revert("access_denied");
         }
     }
+
+    function cancelTransaction(string memory clientUrl, uint256 transactionId) public {
+        if( Transactions[transactionId].Initiator == msg.sender ){
+            Transactions[transactionId].State = TransactionStruct.Cancelled;
+            UserToTransaction[Transactions[transactionId].Idtag] = 0;
+            emit CancelTransaction(clientUrl, transactionId);
+        }else{
+            revert("access_denied");
+        }
+    }    
 }

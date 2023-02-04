@@ -4,7 +4,7 @@
 // You can also run a script with `npx hardhat run <script>`. If you do that, Hardhat
 // will compile your contracts, add the Hardhat Runtime Environment's members to the
 // global scope, and execute the script.
-const hre = require("hardhat");
+const { ethers, upgrades } = require("hardhat");
 const fs = require('fs');
 const proxy_adresses =  {
   Station: null,
@@ -16,10 +16,10 @@ async function main() {
   console.log(owner.address)
 
   balance = await ethers.provider.getBalance(owner.address)
-  console.log(balance)
+  console.log("Balance: ",ethers.utils.formatEther( balance))
 
-  const Station = await hre.ethers.getContractFactory("OCPP");
-  const station = await Station.deploy();
+  const Station = await ethers.getContractFactory("OCPP");
+  const station = await upgrades.deployProxy(Station);
   
   await station.deployed();
   proxy_adresses.Station = station.address;

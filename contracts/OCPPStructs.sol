@@ -6,7 +6,7 @@ library TransactionStruct {
         uint256 TotalPrice;
         uint256 TotalImportRegisterWh;
         bool IsPaidToOwner;
-        uint256 Idtag;
+        string Idtag;
         uint256 MeterStart;
         uint256 LastMeter;
         uint256 MeterStop;
@@ -19,6 +19,7 @@ library TransactionStruct {
         int ConnectorPriceFor;
         
     }
+
 
     struct MeterValue {
         uint256 TransactionId;
@@ -36,6 +37,7 @@ library TransactionStruct {
     int constant Charging = 3;
     int constant Finished = 4;
     int constant Error = 5;
+    int constant Cancelled = 6;
 
     // For Fields.ConnectorPriceFor
     int constant Kw = 1;
