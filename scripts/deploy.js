@@ -4,32 +4,33 @@
 // You can also run a script with `npx hardhat run <script>`. If you do that, Hardhat
 // will compile your contracts, add the Hardhat Runtime Environment's members to the
 // global scope, and execute the script.
-const { ethers, upgrades } = require("hardhat");
+const { ethers, upgrades, network } = require("hardhat");
 const fs = require('fs');
 const proxy_adresses =  {
-  Station: null,
+  OCPP: null,
 }
 
 
 async function main() {
   const [owner] = await ethers.getSigners();
-  console.log(owner.address)
+  console.log("Network: ", network.name)
+  console.log("Address: ",owner.address)
 
   balance = await ethers.provider.getBalance(owner.address)
   console.log("Balance: ",ethers.utils.formatEther( balance))
 
-  const Station = await ethers.getContractFactory("OCPP");
-  const station = await upgrades.deployProxy(Station);
+  const OCPP = await ethers.getContractFactory("OCPP");
+  const ocpp = await upgrades.deployProxy(OCPP);
   
-  await station.deployed();
-  proxy_adresses.Station = station.address;
+  await ocpp.deployed();
+  proxy_adresses.OCPP = ocpp.address;
 
-  fs.writeFile(__dirname+"/../proxy_adresses.json", JSON.stringify(proxy_adresses, null, "\t"), function (err) {
+  fs.writeFile(__dirname+"/../"+network.name+"_proxy_adresses.json", JSON.stringify(proxy_adresses, null, "\t"), function (err) {
     if (err) return console.log(err);
-    else console.log("Save to proxy_adresses.json")
+    else console.log("Save to "+network.name+"_proxy_adresses.json")
   });
 
-  console.log("Station deployed to:", station.address);
+  console.log("OCPP deployed to:", ocpp.address);
 }
 
 // We recommend this pattern to be able to use async/await everywhere

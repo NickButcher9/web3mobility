@@ -1,21 +1,32 @@
 require("@nomicfoundation/hardhat-toolbox");
 require('@openzeppelin/hardhat-upgrades');
 const { task } = require("hardhat/config");
+
 const fs = require('fs');
 const mnemonic = fs.readFileSync('.mnemonic', 'utf8');
-const contractsAddress = JSON.parse( fs.readFileSync('proxy_adresses.json', 'utf8'))
 
-//const ABI = require('./artifacts/contracts/OCPP.sol/OCPP.json');
 
-task("addStation", "Distribute ETH", async () => {
+async function loadContract(){
+  const {network} = require("hardhat");
 
+  const contractsAddress = JSON.parse( fs.readFileSync(network.name+'_proxy_adresses.json', 'utf8'))
+
+  const ABI = require('./artifacts/contracts/OCPP.sol/OCPP.json');
+  
+  const accounts = await ethers.getSigners();
+      
+  const contract = new ethers.Contract(contractsAddress.OCPP, ABI.abi, accounts[0]);
+
+  return {accounts, contract}
+
+}
+
+task("addStation", "Distribute ETH", async (args) => {
+  
   try {
 
-  
-    const accounts = await ethers.getSigners();
-    
-    const contract = new ethers.Contract(contractsAddress.Station, ABI.abi, accounts[0]);
-    
+    const {accounts, contract} = await loadContract()
+
     let log = await contract.addStation({
       ClientUrl: "CB00001",
       Owner: accounts[0].address,
@@ -58,7 +69,7 @@ task("addStation", "Distribute ETH", async () => {
     await log.wait()
     console.log(log)
   } catch (error) {
-    console.log(error)
+    console.log(error.reason)
   }
 
 })
@@ -195,17 +206,24 @@ task("getTransaction", "Distribute ETH")
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
-  defaultNetwork: "authority",
+  defaultNetwork: "authorityLocal",
   networks: {
     hardhat: {
       allowUnlimitedContractSize: true
     },
-    authority: {
+    authorityLocal: {
       url: "http://localhost:8545",
-      //url: "http://rrbp.portalenergy.tech:80",
       gasPrice: 2000,
-      //skipDryRun: true,
-      //timeout:10000000,
+      networkid:18021982,
+      confirmations:2,
+      gas: 12000000,
+      accounts: {mnemonic: mnemonic}
+    },
+    authorityProduction: {
+      url: "http://rrbp.portalenergy.tech:80",
+      gasPrice: 2000,
+      skipDryRun: true,
+      timeout:10000000,
       networkid:18021982,
       confirmations:2,
       gas: 12000000,
