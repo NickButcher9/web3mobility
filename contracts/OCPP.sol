@@ -2,12 +2,9 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "hardhat/console.sol";
 import "./OCPPStructs.sol";
 
 contract OCPP is Initializable {
-
-    
 
     uint256 transactionIdcounter;
     uint256 stationIndex;
