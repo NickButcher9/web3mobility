@@ -3,23 +3,56 @@ require('@openzeppelin/hardhat-upgrades');
 const { task } = require("hardhat/config");
 
 const fs = require('fs');
+const { utils } = require("ethers");
 const mnemonic = fs.readFileSync('.mnemonic', 'utf8');
 
 
 async function loadContract(){
-  const {network} = require("hardhat");
+  const {network, ethers} = require("hardhat");
 
   const contractsAddress = JSON.parse( fs.readFileSync(network.name+'_proxy_adresses.json', 'utf8'))
 
   const ABI = require('./artifacts/contracts/OCPP.sol/OCPP.json');
   
   const accounts = await ethers.getSigners();
+  
       
-  const contract = new ethers.Contract(contractsAddress.OCPP, ABI.abi, accounts[0]);
+  const contract = new ethers.Contract(contractsAddress.OCPP, ABI.abi, accounts[1]);
 
-  return {accounts, contract}
+  return {accounts, contract, ethers}
 
 }
+
+task("getAddresses", "Account list", async () => {
+  const accounts = await ethers.getSigners();
+  for (let index = 0; index < accounts.length; index++) {
+    const account = accounts[index];
+    let balance = await account.getBalance()
+    console.log(index+"|", account.address, "|", ethers.utils.formatEther(balance))
+    
+  }
+})
+
+
+task("transferETH", "Send ETH from zero account to address")
+.addParam("address")
+.addParam("amount")
+.setAction(async (args) => {
+  const accounts = await ethers.getSigners();
+  // Create a transaction object
+  let txData = {
+      to: args.address,
+      value: ethers.utils.parseEther(args.amount.toString())
+  }
+
+  let tx = await accounts[0].sendTransaction(txData);
+  await tx.wait();
+
+
+
+})
+
+
 
 task("addStation", "Distribute ETH", async (args) => {
   
@@ -125,8 +158,7 @@ task("getStation", "Get station full data")
   .setAction( async (args) => {
     try {  
       
-      const accounts = await ethers.getSigners();
-      const contract = new ethers.Contract(contractsAddress.Station, ABI.abi, accounts[0]);
+      const {contract} = await loadContract()
       
       if(args.stationurl){
         let station = await contract.getStationByUrl(args.stationurl)
@@ -154,8 +186,7 @@ task("startTransaction", "Start charging transaction")
   try {
 
   
-    const accounts = await ethers.getSigners();
-    const contract = new ethers.Contract(contractsAddress.Station, ABI.abi, accounts[0]);
+    const {contract} = await loadContract()
     let log = await contract.remoteStartTransaction(arg.stationurl, arg.connectorid, arg.idtag, {gasLimit:1000000,gasPrice:21000});
     await log.wait()
     console.log("Success! Tx: ", log)
@@ -173,8 +204,7 @@ task("stopTransaction", "Stop charging transaction")
   try {
 
   
-    const accounts = await ethers.getSigners();
-    const contract = new ethers.Contract(contractsAddress.Station, ABI.abi, accounts[0]);
+    const {contract} = await loadContract()
     
     let log = await contract.remoteStopTransaction(args.stationurl, args.idtag);
     
@@ -190,11 +220,10 @@ task("getTransaction", "Distribute ETH")
 .setAction( async (arg) => {
 
   try {
-    const accounts = await ethers.getSigners();
-    const contract = new ethers.Contract(contractsAddress.Station, ABI.abi, accounts[0]);
+    const {contract} = await loadContract()
     
     let result = await contract.getTransaction(arg.id);
-    
+
     console.log(result)
   } catch (error) {
     console.error("ERROR:", error.reason)

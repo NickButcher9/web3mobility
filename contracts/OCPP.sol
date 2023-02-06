@@ -87,6 +87,9 @@ contract OCPP is Initializable {
         return station;
     }
 
+    function getStationIdByUrl(string memory clientUrl) public view returns(uint256){
+        return ClientUrlById[clientUrl];              
+    }
 
     function setState(string memory clientUrl, bool state) public {
         uint256 stationId = ClientUrlById[clientUrl];
@@ -158,7 +161,7 @@ contract OCPP is Initializable {
         }        
     }
 
-    function heartbeat(string memory clientUrl) public {
+    function heartbeat(string memory clientUrl, uint256 timestamp) public {
         uint256 stationId = ClientUrlById[clientUrl];
 
         if( Stations[stationId].Owner == address(0))
@@ -168,8 +171,8 @@ contract OCPP is Initializable {
             revert("access_denied");
         
 
-        Stations[stationId].Heartbeat = block.timestamp;
-        emit Heartbeat(clientUrl, block.timestamp);
+        Stations[stationId].Heartbeat = timestamp;
+        emit Heartbeat(clientUrl, timestamp);
     }
 
     function statusNotificationTriggers(StationStruct.Connectors memory connector, uint256 stationId) private {
@@ -221,11 +224,15 @@ contract OCPP is Initializable {
     }
 
     function rejectTransaction(uint256 transactionId) public {
-        Transactions[transactionId].State = TransactionStruct.Error;
-        UserToTransaction[Transactions[transactionId].Idtag] = 0;
-
-        if(Transactions[transactionId].Initiator == msg.sender)
-            emit RejectTransaction(transactionId);
+        
+        if(Stations[Transactions[transactionId].StationId].Owner == msg.sender){
+            Transactions[transactionId].State = TransactionStruct.Error;
+            UserToTransaction[Transactions[transactionId].Idtag] = 0;
+            emit RejectTransaction(transactionId);                        
+        }else{
+            revert("access_denied");
+        }
+            
     }
 
     function remoteStopTransaction(string memory clientUrl, string memory idtag) public {
@@ -234,7 +241,11 @@ contract OCPP is Initializable {
 
         StationStruct.Connectors memory connector  = getConnector(stationId, Transactions[transactionId].ConnectorId);
 
-        if(  (connector.Status == StationStruct.Charging || connector.Status == StationStruct.Preparing) && Stations[stationId].State == StationStruct.Active && Transactions[transactionId].Initiator == msg.sender) {
+        if(  
+            (connector.Status == StationStruct.Charging || connector.Status == StationStruct.Preparing) 
+            && Stations[stationId].State == StationStruct.Active 
+            && (Transactions[transactionId].Initiator == msg.sender || Stations[Transactions[transactionId].StationId].Owner == msg.sender
+        ) ) {
             emit RemoteStopTransaction(clientUrl, transactionId, Transactions[transactionId].ConnectorId, idtag);
         }
         
@@ -267,7 +278,7 @@ contract OCPP is Initializable {
 
         Transactions[transactionId].MeterStart = meterStart;
         Transactions[transactionId].DateStart = dateStart;
-        Transactions[transactionId].State = TransactionStruct.Preparing;
+        Transactions[transactionId].State = TransactionStruct.Charging;
         emit StartTransaction(clientUrl, transactionId,  dateStart, meterStart);
     }
 
@@ -275,11 +286,13 @@ contract OCPP is Initializable {
     function meterValues(string memory clientUrl, int connectorId,uint256 transactionId, TransactionStruct.MeterValue memory meterValue ) public {
         uint256 stationId = ClientUrlById[clientUrl];
         StationStruct.Connectors memory connector  = getConnector(stationId, connectorId);
+        
+        if( Transactions[transactionId].Initiator == address(0))
+            revert("transaction_not_found");
 
-        if( Transactions[transactionId].Initiator == msg.sender && connector.Status == StationStruct.Charging){
+        if( Stations[stationId].Owner == msg.sender && connector.Status == StationStruct.Charging){
             
             Stations[stationId].Heartbeat = block.timestamp;
-            Transactions[transactionId].State = TransactionStruct.Charging;
             Transactions[transactionId].LastMeter =  meterValue.EnergyActiveImportRegister_Wh;
             MeterValuesData[transactionId].push(meterValue);
             emit MeterValues(clientUrl, connectorId, transactionId,  meterValue );
@@ -292,7 +305,9 @@ contract OCPP is Initializable {
     }
 
     function stopTransaction(string memory clientUrl, uint256 transactionId, uint256 dateStop, uint256 meterStop) public {
-        if( Transactions[transactionId].Initiator == msg.sender ){
+        uint256 stationId = ClientUrlById[clientUrl];
+
+        if( Stations[stationId].Owner == msg.sender ){
             Transactions[transactionId].MeterStop = meterStop;
             Transactions[transactionId].TotalImportRegisterWh = Transactions[transactionId].MeterStop-Transactions[transactionId].MeterStart;
             Transactions[transactionId].DateStop = dateStop;
@@ -311,7 +326,9 @@ contract OCPP is Initializable {
     }
 
     function cancelTransaction(string memory clientUrl, uint256 transactionId) public {
-        if( Transactions[transactionId].Initiator == msg.sender ){
+        uint256 stationId = ClientUrlById[clientUrl];
+
+        if( Transactions[transactionId].Initiator == msg.sender || Stations[stationId].Owner == msg.sender ){
             Transactions[transactionId].State = TransactionStruct.Cancelled;
             UserToTransaction[Transactions[transactionId].Idtag] = 0;
             emit CancelTransaction(clientUrl, transactionId);

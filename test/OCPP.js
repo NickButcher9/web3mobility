@@ -150,7 +150,7 @@ describe("Station", function(){
     })
     
     it("heartbeat", async function(){
-        const transaction = await this.OCPP.heartbeat("CB00001");
+        const transaction = await this.OCPP.heartbeat("CB00001", Date.now());
         const { clientUrl } = await GetEventArgumentsByNameAsync(transaction, "Heartbeat");
         expect(clientUrl).to.equal("CB00001");        
     })
@@ -217,7 +217,7 @@ describe("Success transaction", function(){
         const {Initiator, State, Idtag, MeterStart, ConnectorPrice, StationId, ConnectorId} = await this.OCPP.getTransaction(2)
 
         expect(Initiator).to.equal(this.owner);
-        expect(State.toString()).to.equal("2");
+        expect(State.toString()).to.equal("3");
         expect(Idtag.toString()).to.equal("123")
         expect(MeterStart.toString()).to.equal("0")
         expect(ethers.utils.formatEther(ConnectorPrice.toString()) ).to.equal("5.0")
