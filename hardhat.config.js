@@ -249,13 +249,13 @@ module.exports = {
       accounts: {mnemonic: mnemonic}
     },
     authorityProduction: {
-      url: "http://rrbp.portalenergy.tech:80",
-      gasPrice: 2000,
+      url: "http://77.222.55.129:8545",// "http://rrbp.portalenergy.tech/rpc",
+      gasPrice: 1,
       skipDryRun: true,
-      timeout:10000000,
+      //timeout:10000000,
       networkid:18021982,
-      confirmations:2,
-      gas: 12000000,
+      //confirmations:2,
+      //gas: 12000000,
       accounts: {mnemonic: mnemonic}
     }
   },

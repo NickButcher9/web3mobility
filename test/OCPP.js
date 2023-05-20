@@ -14,7 +14,64 @@ before(async function() {
     const OCPP = await ethers.getContractFactory("OCPP");
 
     console.log("Deploying OCPP...");
-    const OCPPDeploy = await upgrades.deployProxy(OCPP);
+
+    this.tariff = {
+        country_code: 1,
+        currency:1,
+        owner: ethers.constants.AddressZero,
+        price_components:[
+            {
+                price: ethers.utils.parseEther("15"),
+                vat: 20,
+                ctype:1, // by kwt
+                step_size: 1,
+                restrictions:{
+                    start_date: 0,
+                    end_date: 0,
+                    start_time:0,
+                    end_time: 0,
+                    min_wh:ethers.utils.parseEther("1000"),
+                    max_wh:ethers.utils.parseEther("200000"),
+                    min_duration:0,
+                    max_duration:0,
+                } 
+            },
+            {
+                price: ethers.utils.parseEther("150"),
+                vat: 20,
+                ctype:2, // flat
+                step_size: 1,
+                restrictions:{
+                    start_date: 0,
+                    end_date: 0,
+                    start_time:0,
+                    end_time: 0,
+                    min_wh:0,
+                    max_wh:0,
+                    min_duration:1,
+                    max_duration:100,
+                } 
+            },
+            {
+                price: ethers.utils.parseEther("5"),
+                vat: 20,
+                ctype:3,
+                step_size: 1,
+                restrictions:{
+                    start_date: 0,
+                    end_date: 0,
+                    start_time:9,
+                    end_time: 20,
+                    min_wh:0,
+                    max_wh:0,
+                    min_duration:0,
+                    max_duration:0
+                } 
+            }
+        ]
+    };
+    
+    const OCPPDeploy = await upgrades.deployProxy(OCPP, [this.tariff]);
 
     this.OCPP = await OCPPDeploy.deployed()
     console.log("OCPP deployed to:", OCPPDeploy.address);
@@ -23,6 +80,8 @@ before(async function() {
         ClientUrl: "CB00001",
         Owner: this.owner,
         Name: "demo",
+        Description: "Demo desc",
+        Power: 31,
         LocationLat: "56.666",
         LocationLon: "35.56",
         Address: "Demo fucker",
@@ -39,19 +98,19 @@ before(async function() {
         Heartbeat: ethers.utils.parseEther("1"),
         Connectors: [
           {
-            Price: ethers.utils.parseEther("5"),
+            Tariff:1,
+            Power:20,
             ConnectorId: 1,
             connectorType: 1,
-            PriceFor: 1,
             Status: 2,
             ErrorCode:0,
             IsHaveLock: true,
           },
           {
-            Price: ethers.utils.parseEther("10"),
+            Tariff:1,
+            Power:20,
             ConnectorId: 2,
             connectorType: 1,
-            PriceFor: 1,
             Status: 2,
             ErrorCode:0,
             IsHaveLock: true,
@@ -157,6 +216,37 @@ describe("Station", function(){
     
 })
 
+
+
+describe("CreateTransactionAccess", function(){
+
+    it("Add partner to create transaction", async function(){
+        await this.OCPP.addPartnerWhoCanCreateTransaction(this.anotherUser.address);
+
+        const whoCanCreateTransaction = await this.OCPP.partnerCanCreateTransaction(this.owner, this.anotherUser.address);
+
+        expect(whoCanCreateTransaction).to.equal(true);
+        
+    })
+
+    it("Delete partner to create transaction", async function(){
+        await this.OCPP.deletePartnerWhoCanCreateTransaction(this.anotherUser.address)
+        const whoCanCreateTransaction = await this.OCPP.partnerCanCreateTransaction(this.owner, this.anotherUser.address);
+
+        expect(whoCanCreateTransaction).to.equal(false);
+        
+    })
+
+    it("Add access to create transaction myself", async function(){
+        await this.OCPP.addPartnerWhoCanCreateTransaction(this.owner);
+
+        const whoCanCreateTransaction = await this.OCPP.partnerCanCreateTransaction(this.owner, this.owner);
+
+        expect(whoCanCreateTransaction).to.equal(true);
+        
+    })
+})
+
 describe("Failed transaction", function(){
     it("RemoteStartTransaction ID 1", async function(){
         const transaction = await this.OCPP.remoteStartTransaction("CB00001", 1, "123");
@@ -195,7 +285,7 @@ describe("Success transaction", function(){
     })
 
     it("startTransaction ID 2", async function(){
-        const time = Date.now()
+        const time = Math.floor(new Date().getTime() / 1000)
         const transaction = await this.OCPP.startTransaction("CB00001", "123", time, 0)
         const {clientUrl, transactionId, meterStart, dateStart} = await GetEventArgumentsByNameAsync(transaction, "StartTransaction");
         expect(transactionId.toString()).to.equal("2");
@@ -220,7 +310,6 @@ describe("Success transaction", function(){
         expect(State.toString()).to.equal("3");
         expect(Idtag.toString()).to.equal("123")
         expect(MeterStart.toString()).to.equal("0")
-        expect(ethers.utils.formatEther(ConnectorPrice.toString()) ).to.equal("5.0")
         expect(StationId.toString()).to.equal("1")
         expect(ConnectorId.toString()).to.equal("1")
 
@@ -235,11 +324,12 @@ describe("Success transaction", function(){
             let data = {
                 TransactionId: 2,
                 ConnectorId: 1,
-                EnergyActiveImportRegister_Wh:meter,
+                EnergyActiveImportRegister_Wh:ethers.utils.parseEther( meter.toString()),
                 CurrentImport_A:38,
                 CurrentOffered_A:40,
                 PowerActiveImport_W:9000,
-                Voltage_V:220                  
+                Voltage_V:220,
+                Percent:10,              
             }
 
             const transactionMeterValues = await this.OCPP.meterValues("CB00001", 1, 2, data)            
@@ -252,6 +342,7 @@ describe("Success transaction", function(){
             expect(data.CurrentOffered_A.toString()).to.equal(meterValue.CurrentOffered_A.toString())
             expect(data.PowerActiveImport_W.toString()).to.equal(meterValue.PowerActiveImport_W.toString())
             expect(data.Voltage_V.toString()).to.equal(meterValue.Voltage_V.toString())
+            expect(data.Percent.toString()).to.equal(meterValue.Percent.toString())
         }
 
         const meterValues = await this.OCPP.getMeterValues(2);
@@ -269,14 +360,15 @@ describe("Success transaction", function(){
     })
 
     it("StopTransaction ID 2", async function(){
-        const time = Date.now()
+        const time = Math.floor(new Date().getTime() / 1000)+60;
+
         meter += 300
-        const transaction = await this.OCPP.stopTransaction("CB00001", 2, time, meter)
+        const transaction = await this.OCPP.stopTransaction("CB00001", 2, time, ethers.utils.parseEther( meter.toString() ) )
         const {clientUrl, transactionId, meterStop, dateStop} = await GetEventArgumentsByNameAsync(transaction, "StopTransaction");
         const existUserTransaction = await this.OCPP.getUserTransaction("123")
         expect(existUserTransaction.toString(), "existUserTransaction").to.equal("0")
         expect(transactionId.toString(), "Transaction ID").to.equal("2");
-        expect(meterStop.toString(), "MeterStop").to.equal(meter.toString());
+        expect(meterStop.toString(), "MeterStop").to.equal( ethers.utils.parseEther( meter.toString()));
         expect(dateStop.toString(), "DateStop").to.equal(time.toString());
         expect(clientUrl, "clientUrl").to.equal("CB00001")
     })
@@ -291,22 +383,28 @@ describe("Success transaction", function(){
     })    
 
     it("Check Transaction data ID 2", async function(){
-        const {Initiator, State, Idtag, MeterStart, MeterStop, TotalImportRegisterWh, TotalPrice, ConnectorPrice, StationId, ConnectorId} = await this.OCPP.getTransaction(2)
+        const {Initiator, State, Idtag, MeterStart, MeterStop, TotalImportRegisterWh, TotalPrice, StationId, ConnectorId, Invoice} = await this.OCPP.getTransaction(2)
 
-        let TotalImportRegisterWhCalc =  Number(MeterStop.toString())-Number(MeterStart.toString())
+        let TotalImportRegisterWhCalc =  Number(ethers.utils.formatEther( MeterStop).toString())-Number(ethers.utils.formatEther(MeterStart).toString())
 
+
+        //const invoice = await this.OCPP.getInvoice(Invoice)
+        //console.log(invoice);
         expect(Initiator, "Initiator").to.equal(this.owner);
         expect(State.toString(), "State").to.equal("4");
         expect(Idtag.toString(), "Idtag").to.equal("123")
         expect(MeterStart.toString(), "MeterStart").to.equal("0")
-        expect(ethers.utils.formatEther(ConnectorPrice.toString()), "ConnectorPrice").to.equal("5.0")
         expect(StationId.toString(), "StationId").to.equal("1")
         expect(ConnectorId.toString(), "ConnectorId").to.equal("1")
-        expect(MeterStop.toString(), "MeterStop").to.equal(meter.toString())
-        expect(TotalImportRegisterWh.toString(), "TotalImportRegisterWh").to.equal(TotalImportRegisterWhCalc.toString())
+        expect(MeterStop.toString(), "MeterStop").to.equal(ethers.utils.parseEther( meter.toString()))
+        expect(Invoice.toString(), "Invoice").to.equal("1")
 
-        expect(ethers.utils.formatEther(TotalPrice.toString()), "TotalPrice").to.equal("150.0")
+        expect(ethers.utils.formatEther(TotalImportRegisterWh).toString(), "TotalImportRegisterWh").to.equal(TotalImportRegisterWhCalc.toString()+".0")
+
+        expect(ethers.utils.formatEther(TotalPrice).toString(), "TotalPrice").to.equal("600.0")
     })
+
+    // TODO write checks all invoice data
 
 })
 
@@ -337,7 +435,7 @@ describe("Cancell transaction", function(){
 
 describe("Total data", function(){
 
-    var countStations = 300;
+    var countStations = 30;
 
     it("Add "+countStations+" stations", async function(){
         for (let index = 0; index < countStations; index++) {
@@ -370,4 +468,12 @@ describe("Total data", function(){
         expect(transactions.length).to.equal((countStations+3))
     })
 
+})
+
+
+describe("Tariff", function(){
+    it("Check default tariff", async function(){
+        const tariff = await this.OCPP.getTariff(1)
+        //console.log(tariff, tariff.price_components, tariff.price_components[0].restrictions)
+    })
 })

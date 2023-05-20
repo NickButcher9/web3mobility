@@ -25,6 +25,8 @@ async function main() {
   await ocpp.deployed();
   proxy_adresses.OCPP = ocpp.address;
 
+  console.log(ocpp);
+
   fs.writeFile(__dirname+"/../"+network.name+"_proxy_adresses.json", JSON.stringify(proxy_adresses, null, "\t"), function (err) {
     if (err) return console.log(err);
     else console.log("Save to "+network.name+"_proxy_adresses.json")

@@ -4,22 +4,21 @@ pragma solidity ^0.8.9;
 library TransactionStruct {
 
     struct Fields {
+        uint256 Id;
         address Initiator;
         uint256 TotalPrice;
         uint256 TotalImportRegisterWh;
-        bool IsPaidToOwner;
         string Idtag;
         uint256 MeterStart;
         uint256 LastMeter;
         uint256 MeterStop;
         uint256 DateStart;
         uint256 DateStop;
-        uint256 ConnectorPrice;
+        uint256 Tariff;
+        uint256 Invoice;
         uint256 StationId;
         int ConnectorId;
-        int State;
-        int ConnectorPriceFor;
-        
+        int State;        
     }
 
 
@@ -31,6 +30,7 @@ library TransactionStruct {
         int CurrentOffered_A;
         int PowerActiveImport_W;
         int Voltage_V;
+        int Percent;
     }
 
     // For Fields.State
@@ -41,23 +41,22 @@ library TransactionStruct {
     int constant Error = 5;
     int constant Cancelled = 6;
 
-    // For Fields.ConnectorPriceFor
-    int constant Kw = 1;
-    int constant Time = 2;
     
 }
+
 
 
 library StationStruct {
 
     struct Connectors {
-        uint256 Price;        
+        int Power; // kW 
         int ConnectorId;
         int connectorType; //
-        int PriceFor;
         int Status; // 1 - avaliable, 2 - preparing, 3 - charging, 4 - finished, 5 - error
         int ErrorCode;
+        uint Tariff;
         bool IsHaveLock;
+
     }
 
     int constant Type1 = 1;
@@ -101,23 +100,29 @@ library StationStruct {
     bool constant InActive = false;
 
     struct Fields {
-        string ClientUrl;
-        address Owner;
+
         string Name;
         string LocationLat;
         string LocationLon;
         string Address;
         string Time;
+        string Description;
+        string Url;
+        int Power;
+
+        string ClientUrl;
+        address Owner;        
         string ChargePointModel;
         string ChargePointVendor;
         string ChargeBoxSerialNumber;
         string FirmwareVersion;
         bool IsActive;
         bool State; 
-        string Url;
-        int Type;
+
+        int Type; // 1 = DC, 2 = AC, 3 = Mixed
         uint256 OcppInterval;
         uint256 Heartbeat;
         Connectors[] Connectors;
+
     }
 }

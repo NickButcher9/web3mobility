@@ -276,3 +276,143 @@ Cобытие для ocpp сервера, принимая это событие
 > RejectTransaction(uint256 indexed transactionId, string reason)
 
 По этому событию можно отследить что станция отклонила запрос на старт транзакции. 
+
+
+## From OCPI
+
+by power
+```
+{
+    "country_code": "RU",
+    "owner": "", // if zero address, then can set for all. If have some kind owner, then only owner can set tariff to connector
+    "id": "1",
+    "currency": "RUB",
+    "elements": [
+        {
+            "price_components": [
+                {
+                    "type": "ENERGY", 
+                    // ENERGY Defined in kWh, step_size multiplier: 1 Wh
+                    // FLAT Flat fee without unit for step_size
+                    // PARKING_TIME Time not charging: defined in hours, step_size multiplier: 1 second
+                    // TIME Time charging: defined in hours, step_size multiplier: 1 second. Can also be used in combination with a RESERVATION restriction to describe the price of the reservation time.
+            
+                    "price": 0.20,
+                    "vat": 20.0,
+                    "step_size": 1
+
+                    // Minimum amount to be billed. This unit will be billed in this step_size
+                    // blocks. Amounts that are less then this step_size are rounded up to
+                    // the given step_size. For example: if type is TIME and step_size
+                    // has a value of 300, then time will be billed in blocks of 5 minutes. If 6
+                    // minutes were used, 10 minutes (2 blocks of step_size) will be billed                    
+                }
+            ],
+            "restrictions": {
+                "max_power": 16.00
+                // start_time -  int in 24 howrs format, can be from 00 to 24
+                // end_time - int in 24 howrs format, can be from 00 to 24
+                // start_date - unixtime
+                // end_date - unixtime 
+                // min_kwh - Minimum consumed energy in kWh, for example 20, valid from this amount of energy (inclusive) being used.
+                // max_kwh - Maximum consumed energy in kWh, for example 50, valid until this amount of energy (exclusive) being used.
+                // min_current - Sum of the minimum current (in Amperes) over all phases, for example 5. When
+                    // the EV is charging with more than, or equal to, the defined amount of current,
+                    // this TariffElement is/becomes active. If the charging current is or becomes lower,
+                    // this TariffElement is not or no longer valid and becomes inactive. This describes
+                    // NOT the minimum current over the entire Charging Session. This restriction can
+                    // make a TariffElement become active when the charging current is above the
+                    // defined value, but the TariffElement MUST no longer be active when the
+                    // charging current drops below the defined value.
+                // max_current - Sum of the maximum current (in Amperes) over all phases, for example 20.
+                    // When the EV is charging with less than the defined amount of current, this
+                    // TariffElement becomes/is active. If the charging current is or becomes higher,
+                    // this TariffElement is not or no longer valid and becomes inactive. This describes
+                    // NOT the maximum current over the entire Charging Session. This restriction can
+                    // make a TariffElement become active when the charging current is below this
+                    // value, but the TariffElement MUST no longer be active when the charging
+                    // current raises above the defined value.
+                // min_power - in whatt
+                // max_power - in whatt
+                // min_duration -  duration in seconds
+                // max_duration -  duration in seconds
+            }
+        },
+        {
+            "price_components": [
+                {
+                    "type": "ENERGY",
+                    "price": 0.35,
+                    "vat": 20.0,
+                    "step_size": 1
+                }
+            ],
+            "restrictions": {
+                "max_power": 32.00
+            }
+        },
+        {
+            "price_components": [
+                {
+                    "type": "ENERGY",
+                    "price": 0.50,
+                    "vat": 20.0,
+                    "step_size": 1
+                }
+            ]
+        }
+    ],
+    "last_updated": "2018-12-05T12:01:09Z"
+}
+```
+
+
+by time
+```
+{
+    "country_code": "DE",
+    "party_id": "ALL",
+    "id": "2",
+    "currency": "EUR",
+    "type": "REGULAR",
+    "elements": [
+        {
+            "price_components": [
+                {
+                    "type": "ENERGY",
+                    "price": 0.00,
+                    "vat": 20.0,
+                    "step_size": 1
+                }
+            ],
+            "restrictions": {
+                "max_duration": 1800
+            }
+        },
+        {
+            "price_components": [
+                {
+                    "type": "ENERGY",
+                    "price": 0.25,
+                    "vat": 20.0,
+                    "step_size": 1
+                }
+            ],
+            "restrictions": {
+                "max_duration": 3600
+            }
+        },
+        {
+            "price_components": [
+                {
+                    "type": "ENERGY",
+                    "price": 0.40,
+                    "vat": 20.0,
+                    "step_size": 1
+                }
+            ]
+        }
+    ],
+    "last_updated": "2018-12-05T13:12:44Z"
+}
+```
