@@ -1,5 +1,6 @@
 require("@nomicfoundation/hardhat-toolbox");
 require('@openzeppelin/hardhat-upgrades');
+require('hardhat-contract-sizer');
 const { task } = require("hardhat/config");
 
 const fs = require('fs');
@@ -238,7 +239,7 @@ module.exports = {
   defaultNetwork: "authorityLocal",
   networks: {
     hardhat: {
-      allowUnlimitedContractSize: true
+      //allowUnlimitedContractSize: true
     },
     authorityLocal: {
       url: "http://localhost:8545",
@@ -255,7 +256,7 @@ module.exports = {
       //timeout:10000000,
       networkid:18021982,
       //confirmations:2,
-      //gas: 12000000,
+      gas: 12000000,
       accounts: {mnemonic: mnemonic}
     }
   },
@@ -264,7 +265,7 @@ module.exports = {
     settings: {
       optimizer: {
         enabled: true,
-        runs: 1000,
+        runs: 1,
       },
     },
   },

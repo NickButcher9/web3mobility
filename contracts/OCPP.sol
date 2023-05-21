@@ -41,8 +41,8 @@ contract OCPP is Initializable, AccessControlUpgradeable, Payment {
 
     function initialize(Tariff calldata _tariff) public initializer {
 
-        transactionIdcounter = 0;
-        stationIndex = 0;
+        //transactionIdcounter = 0;
+        //stationIndex = 0;
         version = "1.0";
 
         __Tariffs_init(_tariff);
@@ -215,8 +215,6 @@ contract OCPP is Initializable, AccessControlUpgradeable, Payment {
                 Stations[stationId].Connectors[index].Status = status;
                 Stations[stationId].Connectors[index].ErrorCode = errorCode;
                 Stations[stationId].Heartbeat = block.timestamp;
-
-                statusNotificationTriggers(Stations[stationId].Connectors[index], stationId);
                 
                 emit StatusNotification(stationId, clientUrl, connectorId, status, errorCode );
             }
@@ -237,9 +235,6 @@ contract OCPP is Initializable, AccessControlUpgradeable, Payment {
         emit Heartbeat(stationId, clientUrl, timestamp);
     }
 
-    function statusNotificationTriggers(StationStruct.Connectors memory connector, uint256 stationId) private {
-
-    }
 
 
 

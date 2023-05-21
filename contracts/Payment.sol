@@ -103,7 +103,7 @@ contract Payment is Initializable, ContextUpgradeable  {
 
     event AddTariff(uint256 indexed tariffId);
     event UpdateTariff(uint256 indexed tariffId);
-    event CreateInvoice(uint256 indexed id, uint256 transactionId);
+    event CreateInvoice(uint256 indexed id, uint256 indexed transactionId);
 
     function __Tariffs_init(Tariff calldata _tariff) internal onlyInitializing {
         BIGNUMBER = 10**18;

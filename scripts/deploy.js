@@ -20,7 +20,61 @@ async function main() {
   console.log("Balance: ",ethers.utils.formatEther( balance))
 
   const OCPP = await ethers.getContractFactory("OCPP");
-  const ocpp = await upgrades.deployProxy(OCPP);
+  const ocpp = await upgrades.deployProxy(OCPP,[{
+    country_code: 1,
+    currency:1,
+    owner: ethers.constants.AddressZero,
+    price_components:[
+        {
+            price: ethers.utils.parseEther("0"),
+            vat: 0,
+            ctype:1, // by kwt
+            step_size: 1,
+            restrictions:{
+                start_date: 0,
+                end_date: 0,
+                start_time:0,
+                end_time: 0,
+                min_wh:0,
+                max_wh:0,
+                min_duration:0,
+                max_duration:0,
+            } 
+        },
+        {
+            price: ethers.utils.parseEther("0"),
+            vat: 0,
+            ctype:0, // flat
+            step_size: 0,
+            restrictions:{
+                start_date: 0,
+                end_date: 0,
+                start_time:0,
+                end_time: 0,
+                min_wh:0,
+                max_wh:0,
+                min_duration:0,
+                max_duration:0,
+            } 
+        },
+        {
+            price: ethers.utils.parseEther("0"),
+            vat: 0,
+            ctype:0,
+            step_size: 0,
+            restrictions:{
+                start_date: 0,
+                end_date: 0,
+                start_time:0,
+                end_time: 0,
+                min_wh:0,
+                max_wh:0,
+                min_duration:0,
+                max_duration:0
+            } 
+        }
+    ]
+}]);
   
   await ocpp.deployed();
   proxy_adresses.OCPP = ocpp.address;
