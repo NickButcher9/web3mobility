@@ -4,8 +4,9 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
-import "./OCPPStructs.sol";
-import "hardhat/console.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import "./Transaction.sol";
+
 
 
 library CountryCode {
@@ -24,7 +25,7 @@ library Currency {
 
 
 
-contract Payment is Initializable, ContextUpgradeable  {
+contract Payment is Initializable, AccessControlUpgradeable  {
 
 
     uint8 constant ENERGY = 1;
@@ -87,7 +88,6 @@ contract Payment is Initializable, ContextUpgradeable  {
         uint ctype;
         uint8 vat;
         uint8 step_size;
-        string[] restrictions;
         uint256 amount;
     }
 
@@ -105,25 +105,26 @@ contract Payment is Initializable, ContextUpgradeable  {
     event UpdateTariff(uint256 indexed tariffId);
     event CreateInvoice(uint256 indexed id, uint256 indexed transactionId);
 
-    function __Tariffs_init(Tariff calldata _tariff) internal onlyInitializing {
+    function initialize(Tariff calldata _tariff)  public initializer {
         BIGNUMBER = 10**18;
         tariffsCount = 0;
         invoicesCount = 0;
-        _addTariff(_tariff);
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        addTariff(_tariff);
     }
 
-    function _addTariff(Tariff calldata _tariff) internal {
+    function addTariff(Tariff calldata _tariff) public onlyRole(DEFAULT_ADMIN_ROLE)  {
         tariffsCount++;
         tariffs[tariffsCount] = _tariff;
 
         emit AddTariff(tariffsCount);
     }
 
-    function _getTariff(uint256 id) internal view returns (Tariff memory){
+    function getTariff(uint256 id) public view onlyRole(DEFAULT_ADMIN_ROLE) returns (Tariff memory){
         return tariffs[id];
     }
 
-    function _updateTariff(uint256 id, Tariff calldata _tariff) internal { 
+    function updateTariff(uint256 id, Tariff calldata _tariff) public onlyRole(DEFAULT_ADMIN_ROLE) { 
         tariffs[id] = _tariff;
         emit UpdateTariff(id);
     }
@@ -133,7 +134,7 @@ contract Payment is Initializable, ContextUpgradeable  {
         hour = secs / SECONDS_PER_HOUR;
     }
 
-    function __createInvoice(TransactionStruct.Fields memory transaction, address stationOowner, uint256 transactionId) internal returns(uint256,uint256){
+    function createInvoice(TransactionStruct.Fields memory transaction, address stationOowner, uint256 transactionId) public onlyRole(DEFAULT_ADMIN_ROLE) returns(uint256,uint256){
 
 
 
@@ -155,8 +156,6 @@ contract Payment is Initializable, ContextUpgradeable  {
         invoice.consumed = consumed;
         
 
-        uint8 restrictionIndex = 0;
-
 
         for (uint i = 0; i < _tariff.price_components.length; i++) {
 
@@ -172,13 +171,14 @@ contract Payment is Initializable, ContextUpgradeable  {
             invoiceDetails.ctype = component.ctype;
             invoiceDetails.vat = component.vat;
             invoiceDetails.step_size = component.step_size;
-            invoiceDetails.restrictions = new string[](4);
+            uint256 minimum_for_pay;
+            uint256 diffDate = transaction.DateStop-transaction.DateStart;
 
             if(component.ctype == ENERGY){
 
                 invoiceDetails.amount = (consumed/(1000*BIGNUMBER))*invoiceDetails.price;
 
-                uint256 minimum_for_pay = invoiceDetails.price*invoiceDetails.step_size;
+                minimum_for_pay = invoiceDetails.price*invoiceDetails.step_size;
 
                 if(invoiceDetails.amount < minimum_for_pay)
                     continue;
@@ -191,11 +191,11 @@ contract Payment is Initializable, ContextUpgradeable  {
             }
 
             if( component.ctype == TIME){
-                uint _minutes = (transaction.DateStop-transaction.DateStart) / 60/60;
+                uint _minutes = (diffDate) / 60/60;
                 
                 invoiceDetails.amount = _minutes*invoiceDetails.price;
 
-                uint256 minimum_for_pay = invoiceDetails.price*invoiceDetails.step_size;
+                minimum_for_pay = invoiceDetails.price*invoiceDetails.step_size;
 
                 if(invoiceDetails.amount < minimum_for_pay)
                     continue;
@@ -206,8 +206,6 @@ contract Payment is Initializable, ContextUpgradeable  {
                 if(transaction.DateStart < component.restrictions.start_date || transaction.DateStop > component.restrictions.end_date){
                     continue;
                 }
-                invoiceDetails.restrictions[restrictionIndex] =  "start_date-end_date";
-                restrictionIndex++;
             }
 
             if(component.restrictions.start_time != 0 && component.restrictions.end_time !=0){
@@ -217,8 +215,6 @@ contract Payment is Initializable, ContextUpgradeable  {
                     continue;
                 }
 
-                invoiceDetails.restrictions[restrictionIndex] =  "start_time-end_time";
-                restrictionIndex++;
             }
 
             if(component.restrictions.min_wh != 0 && component.restrictions.max_wh !=0){
@@ -226,19 +222,15 @@ contract Payment is Initializable, ContextUpgradeable  {
                     continue;
                 }  
 
-                invoiceDetails.restrictions[restrictionIndex] = "min_wh-max_wh";
-                restrictionIndex++;
             }
 
             if(component.restrictions.min_duration != 0 && component.restrictions.max_duration !=0 ){
-                uint _seconds = (transaction.DateStop-transaction.DateStart) / 60;
+                uint _seconds = (diffDate) / 60;
 
                 if( _seconds < component.restrictions.min_duration || _seconds > component.restrictions.max_duration){
                     continue;
                 }
 
-                invoiceDetails.restrictions[restrictionIndex] = "min_duration-max_duration";
-                restrictionIndex++;
             }
 
             invoice.details[i]  = invoiceDetails;
@@ -250,7 +242,7 @@ contract Payment is Initializable, ContextUpgradeable  {
         return (invoice.id, invoice.amount);
     }
 
-    function _getInvoice(uint256 id) internal view returns(Invoice memory){
+    function getInvoice(uint256 id) public view onlyRole(DEFAULT_ADMIN_ROLE) returns(Invoice memory){
         return invoices[id];
     }
 }
