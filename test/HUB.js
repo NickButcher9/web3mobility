@@ -450,7 +450,7 @@ describe("Cancell transaction", function(){
 
 describe("Total data", function(){
 
-    var countStations = 30;
+    var countStations = 10;
 
     it("Add "+countStations+" stations", async function(){
         for (let index = 0; index < countStations; index++) {

@@ -7,7 +7,10 @@
 const { ethers, upgrades, network } = require("hardhat");
 const fs = require('fs');
 const proxy_adresses =  {
-  OCPP: null,
+  HUB: null,
+  Payment: null,
+  Station: null,
+  Transaction: null
 }
 
 
@@ -16,17 +19,14 @@ async function main() {
   console.log("Network: ", network.name)
   console.log("Address: ",owner.address)
 
-  balance = await ethers.provider.getBalance(owner.address)
-  console.log("Balance: ",ethers.utils.formatEther( balance))
 
-  const OCPP = await ethers.getContractFactory("OCPP");
-  const ocpp = await upgrades.deployProxy(OCPP,[{
+  const tariff = {
     country_code: 1,
     currency:1,
     owner: ethers.constants.AddressZero,
     price_components:[
         {
-            price: ethers.utils.parseEther("0"),
+            price: ethers.utils.parseEther("15"),
             vat: 0,
             ctype:1, // by kwt
             step_size: 1,
@@ -74,19 +74,42 @@ async function main() {
             } 
         }
     ]
-}]);
-  
-  await ocpp.deployed();
-  proxy_adresses.OCPP = ocpp.address;
+  };
 
-  console.log(ocpp);
+  const HUB = await ethers.getContractFactory("HUB");
+  const Payment = await ethers.getContractFactory("Payment");
+  const Station = await ethers.getContractFactory("Station");
+  const Transaction = await ethers.getContractFactory("Transaction");
+
+  balance = await ethers.provider.getBalance(owner.address)
+  console.log("Balance: ",ethers.utils.formatEther( balance))
+
+  const HUBDeploy = await upgrades.deployProxy(HUB);
+  this.HUB = await HUBDeploy.deployed()
+  console.log("HUB deployed to:", HUBDeploy.address);
+  proxy_adresses.HUB = HUBDeploy.address;
+
+  const PaymentDeploy = await upgrades.deployProxy(Payment,[tariff,HUBDeploy.address]);
+  this.Payment = await PaymentDeploy.deployed()
+  console.log("Payment deployed to:", PaymentDeploy.address);
+  proxy_adresses.Payment = PaymentDeploy.address;
+
+  const StationDeploy = await upgrades.deployProxy(Station,[HUBDeploy.address]);
+  this.Station = await StationDeploy.deployed()
+  console.log("Station deployed to:", StationDeploy.address);
+  proxy_adresses.Station = StationDeploy.address;
+
+  const TransactionDeploy = await upgrades.deployProxy(Transaction,[StationDeploy.address,PaymentDeploy.address]);
+  this.Transaction = await TransactionDeploy.deployed()
+  console.log("Transaction deployed to:", TransactionDeploy.address);
+  proxy_adresses.Transaction = TransactionDeploy.address;
 
   fs.writeFile(__dirname+"/../"+network.name+"_proxy_adresses.json", JSON.stringify(proxy_adresses, null, "\t"), function (err) {
     if (err) return console.log(err);
     else console.log("Save to "+network.name+"_proxy_adresses.json")
   });
 
-  console.log("OCPP deployed to:", ocpp.address);
+  
 }
 
 // We recommend this pattern to be able to use async/await everywhere
