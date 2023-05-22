@@ -3,7 +3,7 @@ pragma solidity ^0.8.9;
 
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import "./HUB.sol";
 
 library StationStruct {
 
@@ -87,23 +87,26 @@ library StationStruct {
 }
 
 
-contract Station is Initializable, AccessControlUpgradeable {
+contract Station is Initializable {
     mapping (uint256 => StationStruct.Fields)  Stations;
     mapping (string => uint256) ClientUrlById;
 
     uint256 stationIndex;
+    HUB _hub;
 
     event BootNotification(uint256 indexed stationId, string clientUrl, uint256 timestamp);
     event StatusNotification(uint256 indexed stationId, string clientUrl, int connectorId, int status, int errorCode );
     event Heartbeat(uint256 indexed stationId, string clientUrl, uint256 timestamp);
     event ChangeStateStation(uint256 indexed stationId, string clientUrl, bool state);
 
-    function initialize() public initializer {
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    function initialize(address hubContract) public initializer {
+        _hub = HUB(hubContract);
     }
 
-    function addStation(StationStruct.Fields calldata station) public onlyRole(DEFAULT_ADMIN_ROLE)  returns(uint256){
+    function addStation(StationStruct.Fields calldata station) public returns(uint256){
   
+        if(!_hub.isPartner(msg.sender))
+            revert("access_denied");
         
         require(station.Owner == msg.sender, "owner_incorrect");
              
@@ -118,41 +121,58 @@ contract Station is Initializable, AccessControlUpgradeable {
     }
 
 
-    function getStationsCount() public view onlyRole(DEFAULT_ADMIN_ROLE) returns(uint256){
+    function getStationsCount() public view  returns(uint256){
         return stationIndex;
     }
 
 
-    function updateStationName(uint256 id, string calldata name) public onlyRole(DEFAULT_ADMIN_ROLE)  {
+    function updateStationName(uint256 id, string calldata name) public {
+        if(Stations[id].Owner != msg.sender)
+            revert("access_denied");
         Stations[id].Name = name;
     }
 
 
-    function updateStationLocation(uint256 id, string calldata lat, string calldata lon) public onlyRole(DEFAULT_ADMIN_ROLE)   {
+    function updateStationLocation(uint256 id, string calldata lat, string calldata lon) public {
+        if(Stations[id].Owner != msg.sender)
+            revert("access_denied");
         Stations[id].LocationLat = lat;
         Stations[id].LocationLon = lon;
     }
 
 
-    function updateStationAddress(uint256 id, string calldata _address) public onlyRole(DEFAULT_ADMIN_ROLE)  {
+    function updateStationAddress(uint256 id, string calldata _address) public {
+        if(Stations[id].Owner != msg.sender)
+            revert("access_denied");
+
         Stations[id].Address = _address;
     }
 
-    function updateStationTime(uint256 id, string calldata time) public onlyRole(DEFAULT_ADMIN_ROLE)  {
+    function updateStationTime(uint256 id, string calldata time) public  {
+        if(Stations[id].Owner != msg.sender)
+            revert("access_denied");
+
         Stations[id].Time = time;
     }
 
-    function updateStationDescription(uint256 id, string calldata desc) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function updateStationDescription(uint256 id, string calldata desc) public{
+        
+        if(Stations[id].Owner != msg.sender)
+            revert("access_denied");
+
         Stations[id].Description = desc;
     }
 
 
-    function updateStationUrl(uint256 id, string calldata url) public onlyRole(DEFAULT_ADMIN_ROLE)  {
+    function updateStationUrl(uint256 id, string calldata url) public  {
+        if(Stations[id].Owner != msg.sender)
+            revert("access_denied");
+
         Stations[id].Url = url;
     }
 
 
-    function getStation(uint256 stationId) public view  onlyRole(DEFAULT_ADMIN_ROLE)  returns(StationStruct.Fields memory){
+    function getStation(uint256 stationId) public view    returns(StationStruct.Fields memory){
         StationStruct.Fields memory station = Stations[stationId];
 
         if( station.Owner == address(0))
@@ -161,7 +181,7 @@ contract Station is Initializable, AccessControlUpgradeable {
         return station;
     }
 
-    function getStations() public view onlyRole(DEFAULT_ADMIN_ROLE)   returns(StationStruct.Fields[] memory){
+    function getStations() public view  returns(StationStruct.Fields[] memory){
         StationStruct.Fields[] memory ret = new StationStruct.Fields[](stationIndex);
         for (uint256 index = 1; index <= stationIndex; index++) {
             
@@ -172,7 +192,7 @@ contract Station is Initializable, AccessControlUpgradeable {
     }
 
 
-    function getStationByUrl(string memory clientUrl) public view onlyRole(DEFAULT_ADMIN_ROLE)  returns(StationStruct.Fields memory){
+    function getStationByUrl(string memory clientUrl) public view   returns(StationStruct.Fields memory){
         uint256 stationId = ClientUrlById[clientUrl];
         StationStruct.Fields memory station = Stations[stationId];
         
@@ -182,13 +202,13 @@ contract Station is Initializable, AccessControlUpgradeable {
         return station;
     }
 
-    function getStationIdByUrl(string memory clientUrl) public view onlyRole(DEFAULT_ADMIN_ROLE)   returns(uint256){
+    function getStationIdByUrl(string memory clientUrl) public view    returns(uint256){
         return ClientUrlById[clientUrl];              
     }
 
 
 
-    function setState(string memory clientUrl, bool state) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setState(string memory clientUrl, bool state) public {
         uint256 stationId = ClientUrlById[clientUrl];
         
         if( Stations[stationId].Owner == address(0))
@@ -202,7 +222,7 @@ contract Station is Initializable, AccessControlUpgradeable {
     }
 
 
-    function getConnector(uint256 stationId, int connectorId) public view onlyRole(DEFAULT_ADMIN_ROLE)  returns(StationStruct.Connectors memory connector){
+    function getConnector(uint256 stationId, int connectorId) public view   returns(StationStruct.Connectors memory connector){
         StationStruct.Fields memory station = Stations[stationId];
 
         for (uint256 index = 0; index < station.Connectors.length; index++) {
@@ -216,7 +236,7 @@ contract Station is Initializable, AccessControlUpgradeable {
         revert("not_found");
     }
 
-    function bootNotification(string memory clientUrl) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function bootNotification(string memory clientUrl) public  {
         uint256 stationId = ClientUrlById[clientUrl];
         
         if( Stations[stationId].Owner == address(0))
@@ -231,7 +251,7 @@ contract Station is Initializable, AccessControlUpgradeable {
         }
     }
 
-    function statusNotification(string memory clientUrl, int connectorId, int status, int errorCode) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function statusNotification(string memory clientUrl, int connectorId, int status, int errorCode) public  {
         uint256 stationId = ClientUrlById[clientUrl];
 
         if( Stations[stationId].Owner == address(0))
@@ -256,7 +276,7 @@ contract Station is Initializable, AccessControlUpgradeable {
         }        
     }
 
-    function heartbeat(string memory clientUrl, uint256 timestamp) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function heartbeat(string memory clientUrl, uint256 timestamp) public {
         uint256 stationId = ClientUrlById[clientUrl];
 
         if( Stations[stationId].Owner == address(0))

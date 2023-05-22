@@ -49,15 +49,12 @@ library TransactionStruct {
 }
 
 
-contract Transaction is Initializable, AccessControlUpgradeable {
+contract Transaction is Initializable {
 
     uint256 transactionIdcounter;
 
     string version;
 
-    bytes32 public constant MANAGESTATION = keccak256("MANAGESTATION");
-    bytes32 public constant PARTNER = keccak256("PARTNER");
-    bytes32 public constant VIEW = keccak256("VIEW");
     Station _station;
     Payment _payment;
 
@@ -88,29 +85,28 @@ contract Transaction is Initializable, AccessControlUpgradeable {
         _station = Station(stationContractAddress);
         _payment = Payment(paymentContractAddress);
 
-        __AccessControl_init();
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+
     }
 
-    function addPartnerWhoCanCreateTransaction(address addPartner) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function addPartnerWhoCanCreateTransaction(address addPartner) public {
         CreateTransactionAccess[msg.sender][addPartner] = true;
     }   
 
-    function partnerCanCreateTransaction(address stationOwner, address partner) public view onlyRole(DEFAULT_ADMIN_ROLE) returns(bool) {
+    function partnerCanCreateTransaction(address stationOwner, address partner) public view returns(bool) {
         return CreateTransactionAccess[stationOwner][partner];
     }
 
-    function deletePartnerWhoCanCreateTransaction(address deletePartner) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function deletePartnerWhoCanCreateTransaction(address deletePartner) public {
         CreateTransactionAccess[msg.sender][deletePartner] = false;
     }
 
 
-    function getTransactionsCount() public view onlyRole(DEFAULT_ADMIN_ROLE) returns(uint256){
+    function getTransactionsCount() public view  returns(uint256){
         return transactionIdcounter;
     }
 
 
-    function remoteStartTransaction(string memory clientUrl, int connectorId, string memory idtag) public onlyRole(DEFAULT_ADMIN_ROLE)  {
+    function remoteStartTransaction(string memory clientUrl, int connectorId, string memory idtag) public  {
         
         uint256 stationId = _station.getStationIdByUrl(clientUrl);              
 
@@ -153,11 +149,11 @@ contract Transaction is Initializable, AccessControlUpgradeable {
 
     }
 
-    function getUserTransaction(string memory idtag) public view onlyRole(DEFAULT_ADMIN_ROLE)  returns(uint256){
+    function getUserTransaction(string memory idtag) public view  returns(uint256){
         return UserToTransaction[idtag];
     }
 
-    function rejectTransaction(uint256 transactionId) public onlyRole(DEFAULT_ADMIN_ROLE)  {
+    function rejectTransaction(uint256 transactionId) public   {
         StationStruct.Fields memory station = _station.getStation(Transactions[transactionId].StationId);
         
         if(station.Owner == msg.sender){
@@ -170,7 +166,7 @@ contract Transaction is Initializable, AccessControlUpgradeable {
             
     }
 
-    function cancelTransaction(string memory clientUrl, uint256 transactionId) public onlyRole(DEFAULT_ADMIN_ROLE)  {
+    function cancelTransaction(string memory clientUrl, uint256 transactionId) public  {
         uint256 stationId = _station.getStationIdByUrl(clientUrl);
         StationStruct.Fields memory station = _station.getStation(stationId);
 
@@ -183,7 +179,7 @@ contract Transaction is Initializable, AccessControlUpgradeable {
         }
     } 
 
-    function remoteStopTransaction(string memory clientUrl, string memory idtag) public onlyRole(DEFAULT_ADMIN_ROLE)  {
+    function remoteStopTransaction(string memory clientUrl, string memory idtag) public   {
         uint256 stationId = _station.getStationIdByUrl(clientUrl);
         StationStruct.Fields memory station = _station.getStation(stationId);
         uint256 transactionId = UserToTransaction[idtag];
@@ -200,16 +196,16 @@ contract Transaction is Initializable, AccessControlUpgradeable {
         
     }
 
-    function getTransaction(uint256 id) public view onlyRole(DEFAULT_ADMIN_ROLE)  returns(TransactionStruct.Fields memory){
+    function getTransaction(uint256 id) public view  returns(TransactionStruct.Fields memory){
         return Transactions[id];
     }
 
-    function getTransactionByIdtag(string memory tagId) public view onlyRole(DEFAULT_ADMIN_ROLE)  returns(uint256){
+    function getTransactionByIdtag(string memory tagId) public view returns(uint256){
         uint256 transactionId =  UserToTransaction[tagId];
         return transactionId;
     }
 
-    function getTransactions() public view onlyRole(DEFAULT_ADMIN_ROLE)  returns(TransactionStruct.Fields[] memory){
+    function getTransactions() public view  returns(TransactionStruct.Fields[] memory){
         TransactionStruct.Fields[] memory ret = new TransactionStruct.Fields[](transactionIdcounter);
         for (uint256 index = 1; index <= transactionIdcounter; index++) {
             
@@ -219,7 +215,7 @@ contract Transaction is Initializable, AccessControlUpgradeable {
         return ret;
     }    
 
-    function startTransaction(string memory clientUrl, string memory tagId, uint256 dateStart, uint256 meterStart) public onlyRole(DEFAULT_ADMIN_ROLE)  {
+    function startTransaction(string memory clientUrl, string memory tagId, uint256 dateStart, uint256 meterStart) public  {
         
         uint256  transactionId =  UserToTransaction[tagId];
         StationStruct.Fields memory station = _station.getStation(Transactions[transactionId].StationId);
@@ -237,7 +233,7 @@ contract Transaction is Initializable, AccessControlUpgradeable {
     }
 
 
-    function meterValues(string memory clientUrl, int connectorId,uint256 transactionId, TransactionStruct.MeterValue memory meterValue ) public onlyRole(DEFAULT_ADMIN_ROLE)  {
+    function meterValues(string memory clientUrl, int connectorId,uint256 transactionId, TransactionStruct.MeterValue memory meterValue ) public {
         uint256 stationId = _station.getStationIdByUrl(clientUrl);
         StationStruct.Fields memory station = _station.getStation(stationId);
         StationStruct.Connectors memory connector  = _station.getConnector(stationId, connectorId);
@@ -258,11 +254,11 @@ contract Transaction is Initializable, AccessControlUpgradeable {
 
     }
 
-    function getMeterValues(uint256 transactionId) public view  onlyRole(DEFAULT_ADMIN_ROLE) returns(TransactionStruct.MeterValue[] memory){
+    function getMeterValues(uint256 transactionId) public view  returns(TransactionStruct.MeterValue[] memory){
         return MeterValuesData[transactionId];
     }
 
-    function stopTransaction(string memory clientUrl, uint256 transactionId, uint256 dateStop, uint256 meterStop) public onlyRole(DEFAULT_ADMIN_ROLE)  {
+    function stopTransaction(string memory clientUrl, uint256 transactionId, uint256 dateStop, uint256 meterStop) public  {
         uint256 stationId = _station.getStationIdByUrl(clientUrl);
         StationStruct.Fields memory station = _station.getStation(stationId);
         
@@ -290,18 +286,36 @@ contract Transaction is Initializable, AccessControlUpgradeable {
    // stop transaction Local event
    // meterValue local event
 
-   function startTransactionLocal(string memory clientUrl, uint256 transactionId, string memory tagId, uint256 dateStart, uint256 meterStart) public onlyRole(DEFAULT_ADMIN_ROLE)  {
+   function startTransactionLocal(string memory clientUrl, uint256 transactionId, string memory tagId, uint256 dateStart, uint256 meterStart) public   {
         uint256 stationId = _station.getStationIdByUrl(clientUrl);
-        emit StartTransactionLocal(stationId, clientUrl, transactionId,  dateStart, meterStart, tagId);
+        StationStruct.Fields memory station = _station.getStation(stationId);
+        
+        if( station.Owner == msg.sender ){
+            emit StartTransactionLocal(stationId, clientUrl, transactionId,  dateStart, meterStart, tagId);
+        }else{
+            revert("access_denied");
+        }
    }
 
-   function stopTransactionLocal(string memory clientUrl, uint256 transactionId, uint256 dateStop, uint256 meterStop) public onlyRole(DEFAULT_ADMIN_ROLE) {
+   function stopTransactionLocal(string memory clientUrl, uint256 transactionId, uint256 dateStop, uint256 meterStop) public {
         uint256 stationId = _station.getStationIdByUrl(clientUrl);
-        emit StopTransactionLocal(stationId, clientUrl, transactionId,  dateStop, meterStop);
+        StationStruct.Fields memory station = _station.getStation(stationId);
+        
+        if( station.Owner == msg.sender ){
+            emit StopTransactionLocal(stationId, clientUrl, transactionId,  dateStop, meterStop);
+        }else{
+            revert("access_denied");
+        }
    }
 
-   function meterValuesLocal(string memory clientUrl, int connectorId, uint256 transactionId, TransactionStruct.MeterValue memory meterValue) public onlyRole(DEFAULT_ADMIN_ROLE) {
+   function meterValuesLocal(string memory clientUrl, int connectorId, uint256 transactionId, TransactionStruct.MeterValue memory meterValue) public  {
         uint256 stationId = _station.getStationIdByUrl(clientUrl);
-        emit MeterValuesLocal(stationId, clientUrl, connectorId, transactionId,  meterValue );
+        StationStruct.Fields memory station = _station.getStation(stationId);
+        
+        if( station.Owner == msg.sender ){
+            emit MeterValuesLocal(stationId, clientUrl, connectorId, transactionId,  meterValue );
+        }else{
+            revert("access_denied");
+        }
    }
 }

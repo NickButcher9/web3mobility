@@ -3,9 +3,8 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "./Transaction.sol";
+import "./HUB.sol";
 
 
 
@@ -25,7 +24,7 @@ library Currency {
 
 
 
-contract Payment is Initializable, AccessControlUpgradeable  {
+contract Payment is Initializable  {
 
 
     uint8 constant ENERGY = 1;
@@ -93,6 +92,7 @@ contract Payment is Initializable, AccessControlUpgradeable  {
 
     uint constant SECONDS_PER_HOUR = 60 * 60;
     uint constant SECONDS_PER_DAY = 24 * 60 * 60;
+    HUB _hub;
 
     uint256 tariffsCount;
     uint256 invoicesCount;
@@ -105,26 +105,31 @@ contract Payment is Initializable, AccessControlUpgradeable  {
     event UpdateTariff(uint256 indexed tariffId);
     event CreateInvoice(uint256 indexed id, uint256 indexed transactionId);
 
-    function initialize(Tariff calldata _tariff)  public initializer {
+    function initialize(Tariff calldata _tariff, address hubContract)  public initializer {
         BIGNUMBER = 10**18;
-        tariffsCount = 0;
-        invoicesCount = 0;
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _hub = HUB(hubContract);
         addTariff(_tariff);
     }
 
-    function addTariff(Tariff calldata _tariff) public onlyRole(DEFAULT_ADMIN_ROLE)  {
+    function addTariff(Tariff calldata _tariff) public {
         tariffsCount++;
+
+        if(!_hub.isPartner(msg.sender))
+            revert("access_denied");
+
         tariffs[tariffsCount] = _tariff;
 
         emit AddTariff(tariffsCount);
     }
 
-    function getTariff(uint256 id) public view onlyRole(DEFAULT_ADMIN_ROLE) returns (Tariff memory){
+    function getTariff(uint256 id) public view returns (Tariff memory){
         return tariffs[id];
     }
 
-    function updateTariff(uint256 id, Tariff calldata _tariff) public onlyRole(DEFAULT_ADMIN_ROLE) { 
+    function updateTariff(uint256 id, Tariff calldata _tariff) public { 
+        if(tariffs[id].owner != msg.sender)
+            revert("acces_denied");
+
         tariffs[id] = _tariff;
         emit UpdateTariff(id);
     }
@@ -134,9 +139,7 @@ contract Payment is Initializable, AccessControlUpgradeable  {
         hour = secs / SECONDS_PER_HOUR;
     }
 
-    function createInvoice(TransactionStruct.Fields memory transaction, address stationOowner, uint256 transactionId) public onlyRole(DEFAULT_ADMIN_ROLE) returns(uint256,uint256){
-
-
+    function createInvoice(TransactionStruct.Fields memory transaction, address stationOowner, uint256 transactionId) external returns(uint256,uint256){
 
         Tariff memory _tariff = tariffs[transaction.Tariff];
         uint256 consumed = (transaction.MeterStop-transaction.MeterStart);
@@ -242,7 +245,7 @@ contract Payment is Initializable, AccessControlUpgradeable  {
         return (invoice.id, invoice.amount);
     }
 
-    function getInvoice(uint256 id) public view onlyRole(DEFAULT_ADMIN_ROLE) returns(Invoice memory){
+    function getInvoice(uint256 id) public view  returns(Invoice memory){
         return invoices[id];
     }
 }
