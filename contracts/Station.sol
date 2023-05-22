@@ -93,6 +93,7 @@ contract Station is Initializable {
 
     uint256 stationIndex;
     HUB _hub;
+    string version;
 
     event BootNotification(uint256 indexed stationId, string clientUrl, uint256 timestamp);
     event StatusNotification(uint256 indexed stationId, string clientUrl, int connectorId, int status, int errorCode );
@@ -101,6 +102,11 @@ contract Station is Initializable {
 
     function initialize(address hubContract) public initializer {
         _hub = HUB(hubContract);
+        version = "1.0";
+    }
+
+    function getVersion() public view returns(string memory){
+        return version;
     }
 
     function addStation(StationStruct.Fields calldata station) public returns(uint256){

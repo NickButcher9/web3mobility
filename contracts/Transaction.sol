@@ -5,6 +5,9 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "./Payment.sol";
 import "./Station.sol";
+
+import "hardhat/console.sol";
+
 library TransactionStruct {
 
     struct Fields {
@@ -86,6 +89,10 @@ contract Transaction is Initializable {
         _payment = Payment(paymentContractAddress);
 
 
+    }
+
+    function getVersion() public view returns(string memory){
+        return version;
     }
 
     function addPartnerWhoCanCreateTransaction(address addPartner) public {
@@ -246,7 +253,7 @@ contract Transaction is Initializable {
 
         if( station.Owner == msg.sender && connector.Status == StationStruct.Charging){
             
-            _station.heartbeat( clientUrl, block.timestamp);
+            //_station.heartbeat( clientUrl, block.timestamp);
             Transactions[transactionId].LastMeter =  meterValue.EnergyActiveImportRegister_Wh;
             MeterValuesData[transactionId].push(meterValue);
             emit MeterValues(stationId, clientUrl, connectorId, transactionId,  meterValue );

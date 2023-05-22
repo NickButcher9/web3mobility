@@ -93,6 +93,7 @@ contract Payment is Initializable  {
     uint constant SECONDS_PER_HOUR = 60 * 60;
     uint constant SECONDS_PER_DAY = 24 * 60 * 60;
     HUB _hub;
+    string version;
 
     uint256 tariffsCount;
     uint256 invoicesCount;
@@ -107,8 +108,13 @@ contract Payment is Initializable  {
 
     function initialize(Tariff calldata _tariff, address hubContract)  public initializer {
         BIGNUMBER = 10**18;
+        version = "1.0";
         _hub = HUB(hubContract);
         addTariff(_tariff);
+    }
+
+    function getVersion() public view returns(string memory){
+        return version;
     }
 
     function addTariff(Tariff calldata _tariff) public {
