@@ -1,6 +1,6 @@
 
 // SPDX-License-Identifier: GPLV3
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.12;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "./Transaction.sol";

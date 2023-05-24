@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPLV3
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.12;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
@@ -27,6 +27,18 @@ library TransactionStruct {
         int ConnectorId;
         int State;        
     }
+
+    struct FieldsLocal {
+        string Id;
+        uint256 TotalImportRegisterWh;
+        uint256 MeterStart;
+        uint256 MeterStop;
+        uint256 DateStart;
+        uint256 DateStop;
+        uint256 StationId;
+        int ConnectorId;       
+    }
+
 
 
     struct MeterValue {
@@ -60,8 +72,9 @@ contract Transaction is Initializable {
 
     Station _station;
     Payment _payment;
-
+    string[] _localTransactions;
     mapping (uint256 => TransactionStruct.Fields) Transactions;
+    mapping (string => TransactionStruct.FieldsLocal) LocalTransactions;
     mapping (string => uint256) UserToTransaction;
 
     mapping (uint256 => TransactionStruct.MeterValue[]) MeterValuesData;
@@ -77,9 +90,8 @@ contract Transaction is Initializable {
     event RemoteStopTransaction(uint256 indexed stationId, string clientUrl, uint256 indexed transactionId, int connectorId, string idtag);
     event RejectTransaction(uint256 indexed stationId, string clientUrl, uint256 indexed transactionId);
     // Events for log only
-    event StartTransactionLocal(uint256 indexed stationId, string clientUrl, uint256 indexed transactionId,  uint256 dateStart, uint256 meterStart, string tagId);
-    event StopTransactionLocal(uint256 indexed stationId, string clientUrl, uint256 indexed transactionId, uint256 dateStop, uint256 meterStop);
-    event MeterValuesLocal(uint256 indexed stationId, string clientUrl, int connectorId, uint256 indexed transactionId, TransactionStruct.MeterValue  meterValue );
+    event StartTransactionLocal(uint256 indexed stationId, string clientUrl, string indexed transactionId, int connectorId,  uint256 dateStart, uint256 meterStart);
+    event StopTransactionLocal(uint256 indexed stationId, string clientUrl, string indexed transactionId, uint256 dateStop, uint256 meterStop);
 
     function initialize(address stationContractAddress, address paymentContractAddress ) public initializer {
 
@@ -207,20 +219,22 @@ contract Transaction is Initializable {
         return Transactions[id];
     }
 
+    function getTransactionLocal(string memory transactionId,string memory clientUrl) public view  returns(TransactionStruct.FieldsLocal memory){
+        string memory transactionidlocal = string.concat(transactionId,clientUrl);
+        return LocalTransactions[transactionidlocal];
+    }
+
+
     function getTransactionByIdtag(string memory tagId) public view returns(uint256){
         uint256 transactionId =  UserToTransaction[tagId];
         return transactionId;
     }
 
-    function getTransactions() public view  returns(TransactionStruct.Fields[] memory){
-        TransactionStruct.Fields[] memory ret = new TransactionStruct.Fields[](transactionIdcounter);
-        for (uint256 index = 1; index <= transactionIdcounter; index++) {
-            
-            ret[index-1] = Transactions[index];
-        }
 
-        return ret;
+    function getTransactionsLocal() public view  returns(string[] memory){
+        return _localTransactions;
     }    
+
 
     function startTransaction(string memory clientUrl, string memory tagId, uint256 dateStart, uint256 meterStart) public  {
         
@@ -293,36 +307,44 @@ contract Transaction is Initializable {
    // stop transaction Local event
    // meterValue local event
 
-   function startTransactionLocal(string memory clientUrl, uint256 transactionId, string memory tagId, uint256 dateStart, uint256 meterStart) public   {
+   function startTransactionLocal(string memory clientUrl, string memory transactionId, int connectorId, uint256 dateStart, uint256 meterStart) public   {
         uint256 stationId = _station.getStationIdByUrl(clientUrl);
         StationStruct.Fields memory station = _station.getStation(stationId);
         
         if( station.Owner == msg.sender ){
-            emit StartTransactionLocal(stationId, clientUrl, transactionId,  dateStart, meterStart, tagId);
+            string memory transactionidlocal = string.concat(transactionId,clientUrl);
+            
+            _localTransactions.push(transactionidlocal);
+
+            LocalTransactions[transactionidlocal] = TransactionStruct.FieldsLocal({
+                Id: transactionidlocal,
+                TotalImportRegisterWh: 0,
+                MeterStart:meterStart,
+                MeterStop:0,
+                DateStart:dateStart,
+                DateStop:0,
+                StationId:stationId,
+                ConnectorId:connectorId
+            });
+            emit StartTransactionLocal(stationId, clientUrl, transactionidlocal, connectorId, dateStart, meterStart);
         }else{
             revert("access_denied");
         }
    }
 
-   function stopTransactionLocal(string memory clientUrl, uint256 transactionId, uint256 dateStop, uint256 meterStop) public {
+   function stopTransactionLocal(string memory clientUrl, string memory transactionId, uint256 dateStop, uint256 meterStop) public {
         uint256 stationId = _station.getStationIdByUrl(clientUrl);
         StationStruct.Fields memory station = _station.getStation(stationId);
         
         if( station.Owner == msg.sender ){
-            emit StopTransactionLocal(stationId, clientUrl, transactionId,  dateStop, meterStop);
+            string memory transactionidlocal = string.concat(transactionId,clientUrl);
+            LocalTransactions[transactionidlocal].TotalImportRegisterWh = meterStop-LocalTransactions[transactionidlocal].MeterStart;
+            LocalTransactions[transactionidlocal].MeterStop = meterStop;
+            LocalTransactions[transactionidlocal].DateStop = dateStop;
+            emit StopTransactionLocal(stationId, clientUrl, transactionidlocal,  dateStop, meterStop);
         }else{
             revert("access_denied");
         }
    }
 
-   function meterValuesLocal(string memory clientUrl, int connectorId, uint256 transactionId, TransactionStruct.MeterValue memory meterValue) public  {
-        uint256 stationId = _station.getStationIdByUrl(clientUrl);
-        StationStruct.Fields memory station = _station.getStation(stationId);
-        
-        if( station.Owner == msg.sender ){
-            emit MeterValuesLocal(stationId, clientUrl, connectorId, transactionId,  meterValue );
-        }else{
-            revert("access_denied");
-        }
-   }
 }

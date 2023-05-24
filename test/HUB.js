@@ -95,7 +95,7 @@ before(async function() {
         Heartbeat: ethers.utils.parseEther("1"),
         Connectors: [
           {
-            Tariff:1,
+            Tariff:2,
             Power:20,
             ConnectorId: 1,
             connectorType: 1,
@@ -153,8 +153,8 @@ describe("Station", function(){
         expect(station.Owner).to.equal(this.owner);
     })
 
-    it("getStations", async function() {
-        const stations = await this.Station.getStations();
+    it("getPartnersStationIds", async function() {
+        const stations = await this.Station.getPartnersStationIds(this.owner);
         expect(stations.length).to.be.equal(1)
     })
 
@@ -228,7 +228,33 @@ describe("Station", function(){
         const { clientUrl } = await GetEventArgumentsByNameAsync(transaction, "Heartbeat");
         expect(clientUrl).to.equal("CB00001");        
     })
+
+
+    it("Update connector type", async function(){
+        const transaction = await this.Station.updateConnectorType(1, 1, 2);
+        transaction.wait();
+        const conn = await this.Station.getConnector(1, 1);
+        expect(conn.connectorType.toString()).to.equal("2");
+    })
     
+
+    it("Update connector power", async function(){
+        const transaction = await this.Station.updateConnectorPower(1, 1, 33);
+        transaction.wait();
+        const conn = await this.Station.getConnector(1, 1);
+        expect(conn.Power.toString()).to.equal("33");
+    })
+    
+
+
+    it("Update connector tariff", async function(){
+        const transaction = await this.Station.updateConnectorTariff(1, 1, 1);
+        transaction.wait();
+        const conn = await this.Station.getConnector(1, 1);
+        expect(conn.Tariff.toString()).to.equal("1");
+    })
+    
+
 })
 
 
@@ -471,20 +497,43 @@ describe("Total data", function(){
 
     it("Stations count", async function(){
         const count = await this.Station.getStationsCount()
-        const stations = await this.Station.getStations()
         expect(count.toString()).to.equal((countStations+1).toString())
-        expect(stations.length).to.equal((countStations+1))
     })
 
     it("Transactions count", async function(){
         const count = await this.Transaction.getTransactionsCount()
-        const transactions = await this.Transaction.getTransactions()
         expect(count.toString()).to.equal((countStations+3).toString())
-        expect(transactions.length).to.equal((countStations+3))
     })
 
 })
 
+
+
+describe("Local transactions", function(){
+    it("start transaction", async function(){
+        const startTransaction = await this.Transaction.startTransactionLocal("CB00001", "1", 1, Math.floor(new Date().getTime() / 1000), 0);
+
+        startTransaction.wait();
+        const transaction = await this.Transaction.getTransactionLocal("1", "CB00001");
+
+        expect(transaction.StationId.toString()).to.equal("1")
+    })
+    it("stop transaction local", async function(){
+        const stopTransaction = await this.Transaction.stopTransactionLocal("CB00001", "1",  Math.floor(new Date().getTime() / 1000), 10000);
+
+        stopTransaction.wait();
+        const transaction = await this.Transaction.getTransactionLocal("1", "CB00001");
+
+        expect(transaction.TotalImportRegisterWh.toString()).to.equal("10000")
+    })
+
+    it("get local transactions", async function(){
+        const localTransactions = await this.Transaction.getTransactionsLocal();
+
+        expect(localTransactions.length).to.equal(1)
+        
+    })
+})
 
 describe("Tariff", function(){
     it("Check default tariff", async function(){

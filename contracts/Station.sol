@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPLV3
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.12;
 
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "./HUB.sol";
+import "hardhat/console.sol";
 
 library StationStruct {
 
@@ -78,7 +79,7 @@ library StationStruct {
         bool IsActive;
         bool State; 
 
-        int Type; // 1 = DC, 2 = AC, 3 = Mixed
+        int Type; // 1 = AC, 2 = DC, 3 = Mixed
         uint256 OcppInterval;
         uint256 Heartbeat;
         Connectors[] Connectors;
@@ -90,6 +91,7 @@ library StationStruct {
 contract Station is Initializable {
     mapping (uint256 => StationStruct.Fields)  Stations;
     mapping (string => uint256) ClientUrlById;
+    mapping (address => uint256[]) stationPartners;
 
     uint256 stationIndex;
     HUB _hub;
@@ -123,7 +125,12 @@ contract Station is Initializable {
         Stations[stationIndex] = station;
         
         ClientUrlById[station.ClientUrl] = stationIndex;
+        stationPartners[station.Owner].push(stationIndex);
         return stationIndex;
+    }
+
+    function getPartnersStationIds(address partner) public view returns(uint256[] memory){
+        return stationPartners[partner];
     }
 
 
@@ -131,6 +138,90 @@ contract Station is Initializable {
         return stationIndex;
     }
 
+
+
+    function getStation(uint256 stationId) public view    returns(StationStruct.Fields memory){
+        StationStruct.Fields memory station = Stations[stationId];
+
+        if( station.Owner == address(0))
+            revert("station_not_found");
+
+        return station;
+    }
+
+
+    function getStationByUrl(string memory clientUrl) public view   returns(StationStruct.Fields memory){
+        uint256 stationId = ClientUrlById[clientUrl];
+        StationStruct.Fields memory station = Stations[stationId];
+        
+        if( station.Owner == address(0))
+            revert("station_not_found");
+        
+        return station;
+    }
+
+    function getStationIdByUrl(string memory clientUrl) public view    returns(uint256){
+        return ClientUrlById[clientUrl];              
+    }
+
+    function getConnector(uint256 stationId, int connectorId) public view   returns(StationStruct.Connectors memory connector){
+        StationStruct.Fields memory station = Stations[stationId];
+
+        for (uint256 index = 0; index < station.Connectors.length; index++) {
+            StationStruct.Connectors memory c = station.Connectors[index];
+
+            if (c.ConnectorId == connectorId) {
+                return c;
+            }
+        }
+
+        revert("not_found");
+    }
+
+    function updateConnectorType(uint256 stationId, int connectorId, int _type ) public {
+
+        if(Stations[stationId].Owner != msg.sender)
+            revert("access_denied");
+
+        for (uint256 index = 0; index < Stations[stationId].Connectors.length; index++) {
+            if (Stations[stationId].Connectors[index].ConnectorId == connectorId) {
+                Stations[stationId].Connectors[index].connectorType = _type;
+                return;
+            }
+        }
+
+        revert("not_found");
+    }
+
+    function updateConnectorPower(uint256 stationId, int connectorId, int power ) public {
+
+        if(Stations[stationId].Owner != msg.sender)
+            revert("access_denied");
+
+        for (uint256 index = 0; index < Stations[stationId].Connectors.length; index++) {
+            if (Stations[stationId].Connectors[index].ConnectorId == connectorId) {
+                Stations[stationId].Connectors[index].Power = power;
+                return;
+            }
+        }
+
+        revert("not_found");
+    }
+
+    function updateConnectorTariff(uint256 stationId, int connectorId, uint tariff ) public {
+
+        if(Stations[stationId].Owner != msg.sender)
+            revert("access_denied");
+
+        for (uint256 index = 0; index < Stations[stationId].Connectors.length; index++) {
+            if (Stations[stationId].Connectors[index].ConnectorId == connectorId) {
+                Stations[stationId].Connectors[index].Tariff = tariff;
+                return;
+            }
+        }
+
+        revert("not_found");
+    }
 
     function updateStationName(uint256 id, string calldata name) public {
         if(Stations[id].Owner != msg.sender)
@@ -178,41 +269,6 @@ contract Station is Initializable {
     }
 
 
-    function getStation(uint256 stationId) public view    returns(StationStruct.Fields memory){
-        StationStruct.Fields memory station = Stations[stationId];
-
-        if( station.Owner == address(0))
-            revert("station_not_found");
-
-        return station;
-    }
-
-    function getStations() public view  returns(StationStruct.Fields[] memory){
-        StationStruct.Fields[] memory ret = new StationStruct.Fields[](stationIndex);
-        for (uint256 index = 1; index <= stationIndex; index++) {
-            
-            ret[index-1] = Stations[index];
-        }
-
-        return ret;
-    }
-
-
-    function getStationByUrl(string memory clientUrl) public view   returns(StationStruct.Fields memory){
-        uint256 stationId = ClientUrlById[clientUrl];
-        StationStruct.Fields memory station = Stations[stationId];
-        
-        if( station.Owner == address(0))
-            revert("station_not_found");
-        
-        return station;
-    }
-
-    function getStationIdByUrl(string memory clientUrl) public view    returns(uint256){
-        return ClientUrlById[clientUrl];              
-    }
-
-
 
     function setState(string memory clientUrl, bool state) public {
         uint256 stationId = ClientUrlById[clientUrl];
@@ -228,19 +284,7 @@ contract Station is Initializable {
     }
 
 
-    function getConnector(uint256 stationId, int connectorId) public view   returns(StationStruct.Connectors memory connector){
-        StationStruct.Fields memory station = Stations[stationId];
 
-        for (uint256 index = 0; index < station.Connectors.length; index++) {
-            StationStruct.Connectors memory c = station.Connectors[index];
-
-            if (c.ConnectorId == connectorId) {
-                return c;
-            }
-        }
-
-        revert("not_found");
-    }
 
     function bootNotification(string memory clientUrl) public  {
         uint256 stationId = ClientUrlById[clientUrl];
