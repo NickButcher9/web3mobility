@@ -47,6 +47,17 @@ task("getTransactionsLocal", "List ids local transactions", async () => {
   console.log(transactions);
 } )
 
+task("getTransactionLocal", "List ids local transactions")
+.addParam("clienturl")
+.addParam("transactionid")
+.setAction( async (args) => {
+  const {contract} = await loadContract()
+  
+  const transaction = await contract.Transaction.getTransactionLocal(args.transactionid.toString(), args.clienturl)
+  console.log(transaction);
+} )
+
+
 task("transferETH", "Send ETH from zero account to address")
 .addParam("address")
 .addParam("amount")
