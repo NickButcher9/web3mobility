@@ -83,7 +83,8 @@ library StationStruct {
         uint256 OcppInterval;
         uint256 Heartbeat;
         Connectors[] Connectors;
-
+        uint256 OfflineCounter;
+        uint256 SyncId;
     }
 }
 
@@ -96,15 +97,19 @@ contract Station is Initializable {
     uint256 stationIndex;
     HUB _hub;
     string version;
+    string[] stationIndexClientUrl;
 
     event BootNotification(uint256 indexed stationId, string clientUrl, uint256 timestamp);
     event StatusNotification(uint256 indexed stationId, string clientUrl, int connectorId, int status, int errorCode );
     event Heartbeat(uint256 indexed stationId, string clientUrl, uint256 timestamp);
     event ChangeStateStation(uint256 indexed stationId, string clientUrl, bool state);
+    event ChangeIsActiveStation(uint256 indexed stationId, string clientUrl, bool state);
+    event AddStation(uint256 indexed stationId, string clientUrl);
+    event UpdateStation(uint256 indexed stationId, string clientUrl, string change);
 
     function initialize(address hubContract) public initializer {
         _hub = HUB(hubContract);
-        version = "1.0";
+        version = "1.1";
     }
 
     function getVersion() public view returns(string memory){
@@ -126,6 +131,8 @@ contract Station is Initializable {
         
         ClientUrlById[station.ClientUrl] = stationIndex;
         stationPartners[station.Owner].push(stationIndex);
+        stationIndexClientUrl.push(station.ClientUrl);
+        emit AddStation(stationIndex, station.ClientUrl);
         return stationIndex;
     }
 
@@ -136,6 +143,27 @@ contract Station is Initializable {
 
     function getStationsCount() public view  returns(uint256){
         return stationIndex;
+    }
+
+    function getContStationTypes() public view returns(uint256,uint256){
+        uint256  dcType = 0;
+        uint256  acType = 0;
+
+        
+        for (uint256 index = 1; index <= stationIndex; index++) {
+            
+           if( Stations[index].Type == 1){
+                acType++;
+           }else if(Stations[index].Type == 2){
+                dcType++;
+           }
+        }
+
+        return (dcType,acType);
+    }
+
+    function getStationIndexClientUrl() public view returns(string[] memory){
+        return stationIndexClientUrl;
     }
 
 
@@ -149,6 +177,15 @@ contract Station is Initializable {
         return station;
     }
 
+    function getStations() public view  returns(StationStruct.Fields[] memory){
+        StationStruct.Fields[] memory ret = new StationStruct.Fields[](stationIndex);
+        for (uint256 index = 1; index <= stationIndex; index++) {
+            
+            ret[index-1] = Stations[index];
+        }
+
+        return ret;
+    }
 
     function getStationByUrl(string memory clientUrl) public view   returns(StationStruct.Fields memory){
         uint256 stationId = ClientUrlById[clientUrl];
@@ -178,7 +215,8 @@ contract Station is Initializable {
         revert("not_found");
     }
 
-    function updateConnectorType(uint256 stationId, int connectorId, int _type ) public {
+    function updateConnectorType(string memory clientUrl, int connectorId, int _type ) public {
+        uint256 stationId = ClientUrlById[clientUrl];
 
         if(Stations[stationId].Owner != msg.sender)
             revert("access_denied");
@@ -186,14 +224,16 @@ contract Station is Initializable {
         for (uint256 index = 0; index < Stations[stationId].Connectors.length; index++) {
             if (Stations[stationId].Connectors[index].ConnectorId == connectorId) {
                 Stations[stationId].Connectors[index].connectorType = _type;
+                emit UpdateStation(stationId, clientUrl, "update_connector_type");
                 return;
             }
         }
 
-        revert("not_found");
+        revert("connector_not_found");
     }
 
-    function updateConnectorPower(uint256 stationId, int connectorId, int power ) public {
+    function updateConnectorPower(string memory clientUrl, int connectorId, int power ) public {
+        uint256 stationId = ClientUrlById[clientUrl];
 
         if(Stations[stationId].Owner != msg.sender)
             revert("access_denied");
@@ -201,14 +241,17 @@ contract Station is Initializable {
         for (uint256 index = 0; index < Stations[stationId].Connectors.length; index++) {
             if (Stations[stationId].Connectors[index].ConnectorId == connectorId) {
                 Stations[stationId].Connectors[index].Power = power;
+                emit UpdateStation(stationId, clientUrl, "update_connector_power");
                 return;
             }
         }
+        
 
-        revert("not_found");
+        revert("connector_not_found");
     }
 
-    function updateConnectorTariff(uint256 stationId, int connectorId, uint tariff ) public {
+    function updateConnectorTariff(string memory clientUrl, int connectorId, uint tariff ) public {
+        uint256 stationId = ClientUrlById[clientUrl];
 
         if(Stations[stationId].Owner != msg.sender)
             revert("access_denied");
@@ -216,56 +259,106 @@ contract Station is Initializable {
         for (uint256 index = 0; index < Stations[stationId].Connectors.length; index++) {
             if (Stations[stationId].Connectors[index].ConnectorId == connectorId) {
                 Stations[stationId].Connectors[index].Tariff = tariff;
+                emit UpdateStation(stationId, clientUrl, "update_connector_tariff");
                 return;
             }
         }
-
-        revert("not_found");
-    }
-
-    function updateStationName(uint256 id, string calldata name) public {
-        if(Stations[id].Owner != msg.sender)
-            revert("access_denied");
-        Stations[id].Name = name;
-    }
-
-
-    function updateStationLocation(uint256 id, string calldata lat, string calldata lon) public {
-        if(Stations[id].Owner != msg.sender)
-            revert("access_denied");
-        Stations[id].LocationLat = lat;
-        Stations[id].LocationLon = lon;
-    }
-
-
-    function updateStationAddress(uint256 id, string calldata _address) public {
-        if(Stations[id].Owner != msg.sender)
-            revert("access_denied");
-
-        Stations[id].Address = _address;
-    }
-
-    function updateStationTime(uint256 id, string calldata time) public  {
-        if(Stations[id].Owner != msg.sender)
-            revert("access_denied");
-
-        Stations[id].Time = time;
-    }
-
-    function updateStationDescription(uint256 id, string calldata desc) public{
         
-        if(Stations[id].Owner != msg.sender)
+
+        revert("connector_not_found");
+    }
+
+    function updateStationName(string memory clientUrl, string calldata name) public {
+        uint256 stationId = ClientUrlById[clientUrl];
+
+        if(Stations[stationId].Owner != msg.sender)
             revert("access_denied");
 
-        Stations[id].Description = desc;
+        Stations[stationId].Name = name;
+
+        emit UpdateStation(stationId, clientUrl, "update_station_name");
     }
 
 
-    function updateStationUrl(uint256 id, string calldata url) public  {
-        if(Stations[id].Owner != msg.sender)
+    function updateStationSyncId(string memory clientUrl, uint256 syncId) public {
+        uint256 stationId = ClientUrlById[clientUrl];
+
+        if(Stations[stationId].Owner != msg.sender)
             revert("access_denied");
 
-        Stations[id].Url = url;
+        Stations[stationId].SyncId = syncId;
+
+        emit UpdateStation(stationId, clientUrl, "update_station_syncid");
+    }
+
+
+    function updateStationLocation(string memory clientUrl, string calldata lat, string calldata lon) public {
+        uint256 stationId = ClientUrlById[clientUrl];
+        
+        if(Stations[stationId].Owner != msg.sender)
+            revert("access_denied");
+
+        Stations[stationId].LocationLat = lat;
+        Stations[stationId].LocationLon = lon;
+
+        emit UpdateStation(stationId, clientUrl, "update_station_location");
+    }
+
+
+    function updateStationAddress(string memory clientUrl, string calldata _address) public {
+        uint256 stationId = ClientUrlById[clientUrl];
+
+        if(Stations[stationId].Owner != msg.sender)
+            revert("access_denied");
+
+        Stations[stationId].Address = _address;
+
+        emit UpdateStation(stationId, clientUrl, "update_station_address");
+    }
+
+    function updateStationTime(string memory clientUrl, string calldata time) public  {
+        uint256 stationId = ClientUrlById[clientUrl];
+
+        if(Stations[stationId].Owner != msg.sender)
+            revert("access_denied");
+
+        Stations[stationId].Time = time;
+
+        emit UpdateStation(stationId, clientUrl, "update_station_time");
+    }
+
+    function updateStationDescription(string memory clientUrl, string calldata desc) public{
+        uint256 stationId = ClientUrlById[clientUrl];
+        
+        if(Stations[stationId].Owner != msg.sender)
+            revert("access_denied");
+
+        Stations[stationId].Description = desc;
+
+        emit UpdateStation(stationId, clientUrl, "update_station_description");
+    }
+
+
+    function updateStationUrl(string memory clientUrl, string calldata url) public  {
+        uint256 stationId = ClientUrlById[clientUrl];
+
+        if(Stations[stationId].Owner != msg.sender)
+            revert("access_denied");
+
+        Stations[stationId].Url = url;
+
+        emit UpdateStation(stationId, clientUrl, "update_station_url");
+    }
+
+    function updateStationType(string memory clientUrl, int _type) public  {
+        uint256 stationId = ClientUrlById[clientUrl];
+
+        if(Stations[stationId].Owner != msg.sender)
+            revert("access_denied");
+
+        Stations[stationId].Type = _type;
+
+        emit UpdateStation(stationId, clientUrl, "update_station_type");
     }
 
 
@@ -279,14 +372,22 @@ contract Station is Initializable {
         if( Stations[stationId].Owner != msg.sender)
             revert("access_denied");
 
-        Stations[stationId].State = state;
-        emit ChangeStateStation(stationId, clientUrl, state);
+        if(Stations[stationId].State != state){
+            Stations[stationId].State = state;
+
+            if(!state)
+                Stations[stationId].OfflineCounter +=1;
+    
+            emit ChangeStateStation(stationId, clientUrl, state);
+        }
+
+
     }
 
 
 
 
-    function bootNotification(string memory clientUrl) public  {
+    function bootNotification(string memory clientUrl, uint256 timestamp) public  {
         uint256 stationId = ClientUrlById[clientUrl];
         
         if( Stations[stationId].Owner == address(0))
@@ -296,8 +397,8 @@ contract Station is Initializable {
             revert("access_denied");
         
         if(Stations[stationId].IsActive){
-           Stations[stationId].Heartbeat = block.timestamp; 
-           emit BootNotification(stationId, clientUrl, block.timestamp);
+           Stations[stationId].Heartbeat = timestamp; 
+           emit BootNotification(stationId, clientUrl, timestamp);
         }
     }
 
@@ -335,9 +436,23 @@ contract Station is Initializable {
         if( Stations[stationId].Owner != msg.sender)
             revert("access_denied");
         
+        setState(clientUrl, true);
 
         Stations[stationId].Heartbeat = timestamp;
         emit Heartbeat(stationId, clientUrl, timestamp);
     }
 
+    
+    function updateIsActive(string memory clientUrl, bool state) public {
+        uint256 stationId = ClientUrlById[clientUrl];
+        
+        if( Stations[stationId].Owner == address(0))
+            revert("station_not_found");
+        
+        if( Stations[stationId].Owner != msg.sender)
+            revert("access_denied");
+
+        Stations[stationId].IsActive = state;
+        emit ChangeIsActiveStation(stationId, clientUrl, state);
+    }
 }

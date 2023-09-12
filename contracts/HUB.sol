@@ -25,6 +25,10 @@ contract HUB is Initializable, OwnableUpgradeable {
     }
 
     function addPartner(address partner, string memory name) public onlyOwner {
+
+        if(keccak256(abi.encodePacked(name)) == keccak256(abi.encodePacked("")))
+            revert("name_required");
+
         partners[partner].name = name;
         partners[partner].active = true;
         partnersIndex.push(partner);

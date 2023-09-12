@@ -6,6 +6,9 @@ const { task } = require("hardhat/config");
 const fs = require('fs');
 const { utils } = require("ethers");
 const mnemonic = fs.readFileSync('.mnemonic', 'utf8');
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 
 async function loadContract(){
@@ -21,10 +24,10 @@ async function loadContract(){
   const accounts = await ethers.getSigners();
 
   const contract = {
-    Transaction: new ethers.Contract(contractsAddress.Transaction, Transaction.abi, accounts[1]),
-    HUB: new ethers.Contract(contractsAddress.HUB, HUB.abi, accounts[1]),
-    Station: new ethers.Contract(contractsAddress.Station, Station.abi, accounts[1]),
-    Payment: new ethers.Contract(contractsAddress.Payment, Payment.abi, accounts[1])
+    Transaction: new ethers.Contract(contractsAddress.Transaction, Transaction.abi, accounts[0]),
+    HUB: new ethers.Contract(contractsAddress.HUB, HUB.abi, accounts[0]),
+    Station: new ethers.Contract(contractsAddress.Station, Station.abi, accounts[0]),
+    Payment: new ethers.Contract(contractsAddress.Payment, Payment.abi, accounts[0])
   }
 
   return {accounts, contract, ethers}
@@ -58,6 +61,187 @@ task("getTransactionLocal", "List ids local transactions")
 } )
 
 
+
+/* 
+
+    const tariff = {
+        country_code: 1,
+        currency:1,
+        owner: Blockchain.signer.address,
+        price_components:[
+            {
+                price: ethers.utils.parseEther(station.tariff.tariff.toString()),
+                vat: 20,
+                ctype:1, // by kwt
+                step_size: 1,
+                restrictions:{
+                    start_date: 0,
+                    end_date: 0,
+                    start_time:0,
+                    end_time: 0,
+                    min_wh:0,
+                    max_wh:0,
+                    min_duration:0,
+                    max_duration:0,
+                } 
+            },
+            {
+                price: ethers.utils.parseEther("0"),
+                vat: 0,
+                ctype:0, // flat
+                step_size: 0,
+                restrictions:{
+                    start_date: 0,
+                    end_date: 0,
+                    start_time:0,
+                    end_time: 0,
+                    min_wh:0,
+                    max_wh:0,
+                    min_duration:0,
+                    max_duration:0,
+                } 
+            },
+            {
+                price: ethers.utils.parseEther("0"),
+                vat: 0,
+                ctype:0,
+                step_size: 0,
+                restrictions:{
+                    start_date: 0,
+                    end_date: 0,
+                    start_time:0,
+                    end_time: 0,
+                    min_wh:0,
+                    max_wh:0,
+                    min_duration:0,
+                    max_duration:0
+                } 
+            }
+        ]
+      };
+
+*/
+
+task("addTariff", "to hub")
+.setAction(async (args) => {
+  const {contract,accounts} = await loadContract()
+  const tariff = {
+    country_code: 1,
+    currency:1,
+    owner: accounts[0].address,
+    price_components:[
+        {
+            price: ethers.utils.parseEther("10"),
+            vat: 20,
+            ctype:1, // by kwt
+            step_size: 1,
+            restrictions:{
+                start_date: 0,
+                end_date: 0,
+                start_time:0,
+                end_time: 0,
+                min_wh:0,
+                max_wh:0,
+                min_duration:0,
+                max_duration:0,
+            } 
+        },
+        {
+            price: ethers.utils.parseEther("0"),
+            vat: 0,
+            ctype:0, // flat
+            step_size: 0,
+            restrictions:{
+                start_date: 0,
+                end_date: 0,
+                start_time:0,
+                end_time: 0,
+                min_wh:0,
+                max_wh:0,
+                min_duration:0,
+                max_duration:0,
+            } 
+        },
+        {
+            price: ethers.utils.parseEther("0"),
+            vat: 0,
+            ctype:0,
+            step_size: 0,
+            restrictions:{
+                start_date: 0,
+                end_date: 0,
+                start_time:0,
+                end_time: 0,
+                min_wh:0,
+                max_wh:0,
+                min_duration:0,
+                max_duration:0
+            } 
+        }
+    ]
+  };
+  const transaction = await contract.Payment.addTariff(tariff)
+  let result = await transaction.wait()
+
+  console.log(result)
+
+
+})
+
+
+
+task("updateStationType")
+.setAction(async () => {
+  const {contract, accounts} = await loadContract()
+
+  const stations = await contract.Station.getStations()
+
+
+  for (let index = 0; index < stations.length; index++) {
+    const station = stations[index];
+
+    if(station.Owner == accounts[0].address){
+      var type = 1;
+
+      for (let index = 0; index < station.Connectors.length; index++) {
+        const connector = station.Connectors[index];
+
+        if(connector.connectorType != 1 && connector.connectorType != 2){
+          type = 2;
+          break;
+        }
+        
+      }
+
+      const updateStationType = await contract.Station.updateStationType(index+1, type);
+    }
+    
+  }
+
+})
+
+task("addPartner", "to hub")
+.addParam("address")
+.addParam("name")
+.setAction(async (args) => {
+  const {contract} = await loadContract()
+  try{
+
+  const transaction = await contract.HUB.addPartner(args.address,args.name)
+  transaction.wait()
+
+  const partner = await contract.HUB.getPartner(args.address);
+
+  if(partner.name)
+    console.log("Partner add succesfuly!", partner)
+  else
+    console.log("Something wrong")
+  }catch(e){
+   console.log(e)
+  }
+})
+
+
 task("transferETH", "Send ETH from zero account to address")
 .addParam("address")
 .addParam("amount")
@@ -66,10 +250,11 @@ task("transferETH", "Send ETH from zero account to address")
   // Create a transaction object
   let txData = {
       to: args.address,
-      value: ethers.utils.parseEther(args.amount.toString())
+      value: ethers.utils.parseEther(args.amount.toString()),
   }
 
   let tx = await accounts[0].sendTransaction(txData);
+  console.log(tx)
   await tx.wait();
 
 
@@ -166,15 +351,22 @@ task("startTransaction", "Start charging transaction")
   try {
 
   
-    const {contract} = await loadContract()
-    let log = await contract.Transaction.remoteStartTransaction(arg.stationurl, arg.connectorid, arg.idtag, {gasLimit:1000000,gasPrice:21000});
-    await log.wait()
-    console.log("Success! Tx: ", log)
+    const {contract,accounts} = await loadContract()
+
+    //let addmyself = await contract.Transaction.addPartnerWhoCanCreateTransaction(accounts[0].address)
+    //await addmyself.wait()
+
+    let log = await contract.Transaction.remoteStartTransaction(arg.stationurl, arg.connectorid, arg.idtag, {gasLimit:2000000,gasPrice:21000});
+    let result = await log.wait()
+    console.log("Success! Tx: ", result)
   } catch (error) {
     console.log("ERROR:", error.reason)
   }
 
 })
+
+
+
 
 task("stopTransaction", "Stop charging transaction")
 .addParam("stationurl")
@@ -212,6 +404,36 @@ task("getTransaction", "")
 })
 
 
+task("updateData", "")
+.setAction( async () => {
+
+  try {
+    const {contract} = await loadContract()
+    
+    let result = await contract.Station.updateStationIndexClientUrl();
+
+    console.log(result)
+  } catch (error) {
+    console.error("ERROR:", error.reason)
+  }
+
+})
+
+task("isactive","")
+.setAction(async () => {
+  const {contract} = await loadContract()
+  const stations = await contract.Station.getPartnersStationIds("0x602A44E855777E8b15597F0cDf476BEbB7aa70dE")
+
+  for (let index = 0; index < stations.length; index++) {
+    const clientUrl = stations[index];
+    const stataion = await contract.Station.getStation(clientUrl)
+    console.log(stataion);
+    await contract.Station.updateIsActive(stataion.ClientUrl,true)
+    await sleep(5000)
+  }
+})
+
+
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
@@ -220,19 +442,21 @@ module.exports = {
     hardhat: {
       //allowUnlimitedContractSize: true
     },
-    authorityLocal: {
-      url: "http://localhost:8545",
-      gasPrice: 2000,
+    authorityDev: {
+      url: "http://77.222.55.129:8545",// "http://rrbp.portalenergy.tech/rpc",
+      gasPrice: 1,
+      skipDryRun: true,
+      timeout:10000000,
       networkid:18021982,
-      confirmations:2,
+      //confirmations:2,
       gas: 12000000,
       accounts: {mnemonic: mnemonic}
     },
     authorityProduction: {
       url: "http://77.222.55.129:8545",// "http://rrbp.portalenergy.tech/rpc",
-      gasPrice: 1,
+      //gasPrice: 1,
       skipDryRun: true,
-      //timeout:10000000,
+      timeout:10000000,
       networkid:18021982,
       //confirmations:2,
       gas: 12000000,

@@ -24,6 +24,7 @@ async function main() {
     country_code: 1,
     currency:1,
     owner: ethers.constants.AddressZero,
+    syncId:0,
     price_components:[
         {
             price: ethers.utils.parseEther("15"),

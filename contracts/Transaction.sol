@@ -6,8 +6,6 @@ import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol"
 import "./Payment.sol";
 import "./Station.sol";
 
-import "hardhat/console.sol";
-
 library TransactionStruct {
 
     struct Fields {
@@ -36,7 +34,8 @@ library TransactionStruct {
         uint256 DateStart;
         uint256 DateStop;
         uint256 StationId;
-        int ConnectorId;       
+        int ConnectorId;
+        string LocalId;       
     }
 
 
@@ -79,7 +78,11 @@ contract Transaction is Initializable {
 
     mapping (uint256 => TransactionStruct.MeterValue[]) MeterValuesData;
     mapping (address => mapping(address => bool)) CreateTransactionAccess;
-
+    uint256 _LocalTotalImportRegisterWh;
+    uint256 _TotalImportRegisterWh;
+    mapping(string => uint256) TotalImportRegisterWhByStation;
+    mapping(string => uint256) CountBadTransaction;
+    mapping(address => uint256) CountBadTransactionByOwner;
 
     event StartTransaction(uint256 indexed stationId, string clientUrl, uint256 indexed transactionId, uint256 dateStart, uint256 meterStart);
     event StopTransaction(uint256 indexed stationId, string clientUrl, uint256 indexed transactionId, uint256 dateStop, uint256 meterStop);
@@ -106,7 +109,7 @@ contract Transaction is Initializable {
     function getVersion() public view returns(string memory){
         return version;
     }
-
+    // TODO check is partner in hub contract
     function addPartnerWhoCanCreateTransaction(address addPartner) public {
         CreateTransactionAccess[msg.sender][addPartner] = true;
     }   
@@ -185,14 +188,13 @@ contract Transaction is Initializable {
             
     }
 
-    function cancelTransaction(string memory clientUrl, uint256 transactionId) public  {
-        uint256 stationId = _station.getStationIdByUrl(clientUrl);
-        StationStruct.Fields memory station = _station.getStation(stationId);
+    function cancelTransaction(uint256 transactionId) public  {
+        StationStruct.Fields memory station = _station.getStation(Transactions[transactionId].StationId);
 
         if( Transactions[transactionId].Initiator == msg.sender || station.Owner == msg.sender ){
             Transactions[transactionId].State = TransactionStruct.Cancelled;
             UserToTransaction[Transactions[transactionId].Idtag] = 0;
-            emit CancelTransaction(stationId, clientUrl, transactionId);
+            emit CancelTransaction(Transactions[transactionId].StationId, station.ClientUrl, transactionId);
         }else{
             revert("access_denied");
         }
@@ -219,20 +221,40 @@ contract Transaction is Initializable {
         return Transactions[id];
     }
 
-    function getTransactionLocal(string memory transactionId,string memory clientUrl) public view  returns(TransactionStruct.FieldsLocal memory){
-        string memory transactionidlocal = string.concat(transactionId,clientUrl);
-        return LocalTransactions[transactionidlocal];
+    function getTransactionLocal(string memory transactionId) public view  returns(TransactionStruct.FieldsLocal memory){
+        return LocalTransactions[transactionId];
     }
 
 
-    function getTransactionByIdtag(string memory tagId) public view returns(uint256){
-        uint256 transactionId =  UserToTransaction[tagId];
-        return transactionId;
+    function getTransactions(uint offset, uint limit) public view  returns(TransactionStruct.Fields[] memory){
+        TransactionStruct.Fields[] memory ret = new TransactionStruct.Fields[](offset+limit);
+        for (uint i = offset; i < offset+limit; i++) {
+            if(i == transactionIdcounter)
+                break;
+
+            ret[i] = Transactions[i+1];
+        }
+
+        return ret;
+    }
+
+    function getTransactionsLocal(uint offset, uint limit) public view returns(TransactionStruct.FieldsLocal[] memory){
+        TransactionStruct.FieldsLocal[] memory ret = new TransactionStruct.FieldsLocal[](_localTransactions.length);
+
+        for (uint i = offset; i < offset+limit; i++) {
+
+            if(i == _localTransactions.length)
+                break;
+                
+            ret[i] = LocalTransactions[_localTransactions[i]];
+        }
+
+        return ret;
     }
 
 
-    function getTransactionsLocal() public view  returns(string[] memory){
-        return _localTransactions;
+    function getTransactionsLocalCount() public view  returns(uint256){
+        return _localTransactions.length;
     }    
 
 
@@ -284,8 +306,28 @@ contract Transaction is Initializable {
         StationStruct.Fields memory station = _station.getStation(stationId);
         
         if( station.Owner == msg.sender ){
+
+            if(Transactions[transactionId].DateStart == 0){
+                revert("transaction_not_started");
+            }
+
+            if(Transactions[transactionId].DateStop > 0){
+                revert("transaction_already_stoped");
+            }
+
+
             Transactions[transactionId].MeterStop = meterStop;
             Transactions[transactionId].TotalImportRegisterWh = Transactions[transactionId].MeterStop-Transactions[transactionId].MeterStart;
+
+            uint256 alertTransaction = 1*(10**18);
+
+            if(Transactions[transactionId].TotalImportRegisterWh < alertTransaction){
+                CountBadTransaction[clientUrl] += 1;
+                CountBadTransactionByOwner[station.Owner] +=1;
+            }
+
+            _TotalImportRegisterWh += Transactions[transactionId].TotalImportRegisterWh;
+            TotalImportRegisterWhByStation[clientUrl] += Transactions[transactionId].TotalImportRegisterWh;
             Transactions[transactionId].DateStop = dateStop;
             Transactions[transactionId].State = TransactionStruct.Finished;
             UserToTransaction[Transactions[transactionId].Idtag] = 0;
@@ -295,6 +337,8 @@ contract Transaction is Initializable {
             Transactions[transactionId].TotalPrice = amount;
 
             emit StopTransaction(stationId, clientUrl, transactionId, dateStop, meterStop);
+
+
         }else{
             revert("access_denied");
         }
@@ -312,7 +356,12 @@ contract Transaction is Initializable {
         StationStruct.Fields memory station = _station.getStation(stationId);
         
         if( station.Owner == msg.sender ){
-            string memory transactionidlocal = string.concat(transactionId,clientUrl);
+            string memory transactionidlocal = string.concat(transactionId,"-",clientUrl);
+
+            if(LocalTransactions[transactionidlocal].DateStart > 0){
+                revert("already_exist");
+            }
+
             
             _localTransactions.push(transactionidlocal);
 
@@ -324,7 +373,8 @@ contract Transaction is Initializable {
                 DateStart:dateStart,
                 DateStop:0,
                 StationId:stationId,
-                ConnectorId:connectorId
+                ConnectorId:connectorId,
+                LocalId:transactionId
             });
             emit StartTransactionLocal(stationId, clientUrl, transactionidlocal, connectorId, dateStart, meterStart);
         }else{
@@ -336,15 +386,96 @@ contract Transaction is Initializable {
         uint256 stationId = _station.getStationIdByUrl(clientUrl);
         StationStruct.Fields memory station = _station.getStation(stationId);
         
+        
+
         if( station.Owner == msg.sender ){
-            string memory transactionidlocal = string.concat(transactionId,clientUrl);
-            LocalTransactions[transactionidlocal].TotalImportRegisterWh = meterStop-LocalTransactions[transactionidlocal].MeterStart;
-            LocalTransactions[transactionidlocal].MeterStop = meterStop;
-            LocalTransactions[transactionidlocal].DateStop = dateStop;
-            emit StopTransactionLocal(stationId, clientUrl, transactionidlocal,  dateStop, meterStop);
+            string memory transactionidlocal = string.concat(transactionId,"-",clientUrl);
+
+            if(LocalTransactions[transactionidlocal].DateStart > 0){
+
+                if(LocalTransactions[transactionidlocal].DateStop == 0){
+                    LocalTransactions[transactionidlocal].TotalImportRegisterWh = meterStop-LocalTransactions[transactionidlocal].MeterStart;
+
+                    uint256 alertTransaction = 1*(10**18);
+        
+                    if(LocalTransactions[transactionidlocal].TotalImportRegisterWh < alertTransaction){
+                        CountBadTransaction[clientUrl] +=1;
+                        CountBadTransactionByOwner[station.Owner] +=1;
+                    }
+        
+                    _LocalTotalImportRegisterWh += LocalTransactions[transactionidlocal].TotalImportRegisterWh;
+                    TotalImportRegisterWhByStation[clientUrl] += LocalTransactions[transactionidlocal].TotalImportRegisterWh;
+                    LocalTransactions[transactionidlocal].MeterStop = meterStop;
+                    LocalTransactions[transactionidlocal].DateStop = dateStop;
+                    emit StopTransactionLocal(stationId, clientUrl, transactionidlocal,  dateStop, meterStop);
+                }else{
+                    revert("already_stoped");
+                }
+
+
+            }else{
+                revert("local_transaction_not_found");
+            }
+
         }else{
             revert("access_denied");
         }
    }
+
+
+    function brandRate() public view returns(string[] memory, uint256[] memory,string[] memory, address[] memory){
+        string[] memory StationIndexClientUrl =  _station.getStationIndexClientUrl();
+        
+        uint256[] memory values = new uint256[](StationIndexClientUrl.length);
+        string[] memory vendor = new string[](StationIndexClientUrl.length);
+        address[] memory partner = new address[](StationIndexClientUrl.length);
+
+
+        for (uint i = 0; i < StationIndexClientUrl.length; i++) {
+            StationStruct.Fields memory station = _station.getStationByUrl(StationIndexClientUrl[i]);
+            values[i] = CountBadTransaction[StationIndexClientUrl[i]];
+            vendor[i] = station.ChargePointVendor;
+            partner[i] = station.Owner;
+        }
+
+        return (StationIndexClientUrl, values,vendor,partner);
+    }
+
+
+    function getTotalImportRegisterWhByStations() public view returns(string[] memory, uint256[] memory, string[] memory,address[] memory){
+        string[] memory StationIndexClientUrl =  _station.getStationIndexClientUrl();
+        
+        uint256[] memory values = new uint256[](StationIndexClientUrl.length);
+        string[] memory names = new string[](StationIndexClientUrl.length);
+        address[] memory partner = new address[](StationIndexClientUrl.length);
+
+        for (uint i = 0; i < StationIndexClientUrl.length; i++) {
+            StationStruct.Fields memory station = _station.getStationByUrl(StationIndexClientUrl[i]);
+
+            values[i] = TotalImportRegisterWhByStation[StationIndexClientUrl[i]];
+
+            names[i] = string.concat(station.Name, " ", station.ChargePointVendor);
+            partner[i] = station.Owner;
+        }
+
+        return (StationIndexClientUrl, values,names,partner);
+    }    
+    function getTotalImportRegisterWhByStation(string memory clientUrl) public view returns(uint256){
+        return TotalImportRegisterWhByStation[clientUrl];
+    }
+
+    function getCountBadTransactionByOwner(address owner) public view returns(uint256){
+        return CountBadTransactionByOwner[owner];
+    }
+
+    function getLocalTotalImportRegisterWh() public view returns(uint256){
+        return _LocalTotalImportRegisterWh;
+    }
+
+    function getTotalImportRegisterWh() public view returns(uint256){
+        return _TotalImportRegisterWh;
+    }
+
+   
 
 }

@@ -40,6 +40,7 @@ contract Payment is Initializable  {
         uint8 currency; 
         address owner; 
         PriceComponents[3] price_components;
+        //uint256 syncId;
     }
 
     struct PriceComponents {
@@ -118,10 +119,12 @@ contract Payment is Initializable  {
     }
 
     function addTariff(Tariff calldata _tariff) public {
-        tariffsCount++;
+
 
         if(!_hub.isPartner(msg.sender))
             revert("access_denied");
+
+        tariffsCount++;
 
         tariffs[tariffsCount] = _tariff;
 
