@@ -177,11 +177,14 @@ contract Station is Initializable {
         return station;
     }
 
-    function getStations() public view  returns(StationStruct.Fields[] memory){
-        StationStruct.Fields[] memory ret = new StationStruct.Fields[](stationIndex);
-        for (uint256 index = 1; index <= stationIndex; index++) {
-            
-            ret[index-1] = Stations[index];
+    function getStations(uint offset, uint limit) public view  returns(StationStruct.Fields[] memory){
+        StationStruct.Fields[] memory ret = new StationStruct.Fields[](limit);
+
+        for ( uint i = offset; i < offset+limit; i++) {
+            if(i == stationIndex)
+                break;
+
+            ret[i] = Stations[i+1];
         }
 
         return ret;

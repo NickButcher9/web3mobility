@@ -239,14 +239,15 @@ contract Transaction is Initializable {
     }
 
     function getTransactionsLocal(uint offset, uint limit) public view returns(TransactionStruct.FieldsLocal[] memory){
-        TransactionStruct.FieldsLocal[] memory ret = new TransactionStruct.FieldsLocal[](_localTransactions.length);
-
+        TransactionStruct.FieldsLocal[] memory ret = new TransactionStruct.FieldsLocal[](limit+2);
+        uint b = 0;
         for (uint i = offset; i < offset+limit; i++) {
 
             if(i == _localTransactions.length)
                 break;
                 
-            ret[i] = LocalTransactions[_localTransactions[i]];
+            ret[b] = LocalTransactions[_localTransactions[i]];
+            b++;
         }
 
         return ret;

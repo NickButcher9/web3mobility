@@ -4,7 +4,7 @@ require('hardhat-contract-sizer');
 const { task } = require("hardhat/config");
 
 const fs = require('fs');
-const { utils } = require("ethers");
+
 const mnemonic = fs.readFileSync('.mnemonic', 'utf8');
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -33,6 +33,16 @@ async function loadContract(){
   return {accounts, contract, ethers}
 
 }
+
+task("getBalance", "get address balance")
+.addParam("address")
+.setAction(async (args) => {
+  const {ethers} = await loadContract()
+
+  const balance = await ethers.provider.getBalance(args.address)
+
+  console.log("Balance:", ethers.utils.formatEther(balance))
+})
 
 task("getAddresses", "Account list", async () => {
   const accounts = await ethers.getSigners();
@@ -129,6 +139,7 @@ task("addTariff", "to hub")
     country_code: 1,
     currency:1,
     owner: accounts[0].address,
+    SyncId:10,
     price_components:[
         {
             price: ethers.utils.parseEther("10"),
@@ -180,7 +191,9 @@ task("addTariff", "to hub")
         }
     ]
   };
-  const transaction = await contract.Payment.addTariff(tariff)
+  
+  const transaction = await contract.Payment.addTariff(tariff,{gasPrice:0})
+  console.log(transaction)
   let result = await transaction.wait()
 
   console.log(result)
@@ -353,10 +366,10 @@ task("startTransaction", "Start charging transaction")
   
     const {contract,accounts} = await loadContract()
 
-    //let addmyself = await contract.Transaction.addPartnerWhoCanCreateTransaction(accounts[0].address)
-    //await addmyself.wait()
+//    let addmyself = await contract.Transaction.addPartnerWhoCanCreateTransaction(accounts[0].address)
+//    await addmyself.wait()
 
-    let log = await contract.Transaction.remoteStartTransaction(arg.stationurl, arg.connectorid, arg.idtag, {gasLimit:2000000,gasPrice:21000});
+    let log = await contract.Transaction.remoteStartTransaction(arg.stationurl, arg.connectorid, arg.idtag);
     let result = await log.wait()
     console.log("Success! Tx: ", result)
   } catch (error) {
@@ -454,7 +467,7 @@ module.exports = {
     },
     authorityProduction: {
       url: "http://77.222.55.129:8545",// "http://rrbp.portalenergy.tech/rpc",
-      //gasPrice: 1,
+      gasPrice: 1,
       skipDryRun: true,
       timeout:10000000,
       networkid:18021982,

@@ -40,7 +40,7 @@ contract Payment is Initializable  {
         uint8 currency; 
         address owner; 
         PriceComponents[3] price_components;
-        //uint256 syncId;
+        uint256 SyncId;
     }
 
     struct PriceComponents {
