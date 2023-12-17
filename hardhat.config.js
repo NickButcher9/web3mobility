@@ -456,17 +456,17 @@ module.exports = {
       //allowUnlimitedContractSize: true
     },
     authorityDev: {
-      url: "http://77.222.55.129:8545",// "http://rrbp.portalenergy.tech/rpc",
-      gasPrice: 1,
+      url: "http://77.222.43.227:8545",// "http://rrbp.portalenergy.tech/rpc",
+      gasPrice: 20,
       skipDryRun: true,
       timeout:10000000,
       networkid:18021982,
       //confirmations:2,
-      gas: 12000000,
+      gas: 9000000,
       accounts: {mnemonic: mnemonic}
     },
     authorityProduction: {
-      url: "http://77.222.55.129:8545",// "http://rrbp.portalenergy.tech/rpc",
+      url: "http://77.222.43.227:8545",// "http://rrbp.portalenergy.tech/rpc",
       gasPrice: 1,
       skipDryRun: true,
       timeout:10000000,
