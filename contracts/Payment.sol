@@ -142,7 +142,7 @@ contract Payment is Initializable  {
         return tariffs[id];
     }
 
-    function getTariffBySyncId(uint256 id) public view returns (Tariff memory){
+    function getTariffBySyncId(uint256 id) public view returns (Tariff memory, uint256){
 
         
         uint256 tariffid = syncIdRelationTariffIdByPartner[msg.sender][id];
@@ -150,7 +150,7 @@ contract Payment is Initializable  {
         if(tariffid == 0)
             revert("not_found");
 
-        return tariffs[tariffid];
+        return (tariffs[tariffid],tariffid);
     }
 
     function updateTariff(uint256 id, Tariff calldata _tariff) public { 

@@ -95,6 +95,7 @@ contract Transaction is Initializable {
     // Events for log only
     event StartTransactionLocal(uint256 indexed stationId, string clientUrl, string indexed transactionId, int connectorId,  uint256 dateStart, uint256 meterStart);
     event StopTransactionLocal(uint256 indexed stationId, string clientUrl, string indexed transactionId, uint256 dateStop, uint256 meterStop);
+    event AddTransactionLocal(uint256 indexed stationId, string clientUrl, string indexed transactionId, int connectorId,  uint256 dateStart, uint256 dateStop, uint256 meterStart, uint256 meterStop);
 
     function initialize(address stationContractAddress, address paymentContractAddress ) public initializer {
 
@@ -382,6 +383,41 @@ contract Transaction is Initializable {
             revert("access_denied");
         }
    }
+
+   function addTransactionLocal(string memory clientUrl, string memory transactionId, int connectorId, uint256 dateStart, uint256 dateStop, uint256 meterStart, uint256 meterStop) public   {
+    uint256 stationId = _station.getStationIdByUrl(clientUrl);
+    StationStruct.Fields memory station = _station.getStation(stationId);
+    
+    if( station.Owner == msg.sender ){
+        string memory transactionidlocal = string.concat(transactionId,"-",clientUrl);
+
+        if(LocalTransactions[transactionidlocal].DateStart > 0){
+            revert("already_exist");
+        }
+
+        
+        _localTransactions.push(transactionidlocal);
+
+        LocalTransactions[transactionidlocal] = TransactionStruct.FieldsLocal({
+            Id: transactionidlocal,
+            TotalImportRegisterWh: meterStop-meterStart,
+            MeterStart:meterStart,
+            MeterStop:meterStop,
+            DateStart:dateStart,
+            DateStop:dateStop,
+            StationId:stationId,
+            ConnectorId:connectorId,
+            LocalId:transactionId
+        });
+
+        _LocalTotalImportRegisterWh += LocalTransactions[transactionidlocal].TotalImportRegisterWh;
+        TotalImportRegisterWhByStation[clientUrl] += LocalTransactions[transactionidlocal].TotalImportRegisterWh;
+
+        emit AddTransactionLocal(stationId, clientUrl, transactionidlocal, connectorId, dateStart, dateStop, meterStart, meterStop);
+    }else{
+        revert("access_denied");
+    }
+}
 
    function stopTransactionLocal(string memory clientUrl, string memory transactionId, uint256 dateStop, uint256 meterStop) public {
         uint256 stationId = _station.getStationIdByUrl(clientUrl);
