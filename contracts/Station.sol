@@ -178,13 +178,24 @@ contract Station is Initializable {
     }
 
     function getStations(uint offset, uint limit) public view  returns(StationStruct.Fields[] memory){
-        StationStruct.Fields[] memory ret = new StationStruct.Fields[](limit);
+        
+        uint256 output = limit;
 
+        if(stationIndex-offset < limit)
+            output = stationIndex-offset;
+        
+        StationStruct.Fields[] memory ret = new StationStruct.Fields[](output);
+        
+        if(offset > stationIndex)
+            ret = new StationStruct.Fields[](0);
+        
+        uint b = 0;
         for ( uint i = offset; i < offset+limit; i++) {
             if(i == stationIndex)
                 break;
 
-            ret[i] = Stations[i+1];
+            ret[b] = Stations[i+1];
+            b++;
         }
 
         return ret;

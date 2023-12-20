@@ -467,7 +467,7 @@ module.exports = {
     },
     authorityProduction: {
       url: "http://77.222.43.227:8545",// "http://rrbp.portalenergy.tech/rpc",
-      gasPrice: 1,
+      gasPrice: 200,
       skipDryRun: true,
       timeout:10000000,
       networkid:18021982,
