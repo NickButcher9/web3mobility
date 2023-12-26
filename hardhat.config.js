@@ -236,12 +236,13 @@ task("updateStationType")
 task("addPartner", "to hub")
 .addParam("address")
 .addParam("name")
+.addParam("role")
 .setAction(async (args) => {
   const {contract} = await loadContract()
   try{
 
-  const transaction = await contract.HUB.addPartner(args.address,args.name)
-  transaction.wait()
+  const transaction = await contract.HUB.addPartner(args.address,args.name, args.role)
+  await transaction.wait()
 
   const partner = await contract.HUB.getPartner(args.address);
 

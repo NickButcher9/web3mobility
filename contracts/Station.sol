@@ -136,6 +136,39 @@ contract Station is Initializable {
         return stationIndex;
     }
 
+
+    function transfer(string memory clientUrl,address to) public{
+        uint256 stationId = ClientUrlById[clientUrl];
+        StationStruct.Fields memory station = Stations[stationId];
+
+        if(Stations[stationId].Owner != msg.sender)
+            revert("access_denied");
+
+        if(!_hub.isPartner(to))
+            revert("recipient_not_partner");
+
+
+
+        uint index = 0;
+
+        for (uint i = 0; i < stationPartners[station.Owner].length; i++) {
+            if(stationPartners[station.Owner][i] == stationId){
+                index = i;
+                break;
+            }
+        }
+
+        if(index == 0)
+            revert("station_not_found_in_index");
+
+        
+        stationPartners[station.Owner][index] = stationPartners[station.Owner][stationPartners[station.Owner].length - 1];
+        stationPartners[station.Owner].pop();
+        Stations[stationId].Owner = to;
+        stationPartners[to].push(stationId);
+
+    }
+
     function getPartnersStationIds(address partner) public view returns(uint256[] memory){
         return stationPartners[partner];
     }
@@ -282,16 +315,6 @@ contract Station is Initializable {
         revert("connector_not_found");
     }
 
-    function updateStationName(string memory clientUrl, string calldata name) public {
-        uint256 stationId = ClientUrlById[clientUrl];
-
-        if(Stations[stationId].Owner != msg.sender)
-            revert("access_denied");
-
-        Stations[stationId].Name = name;
-
-        emit UpdateStation(stationId, clientUrl, "update_station_name");
-    }
 
 
     function updateStationSyncId(string memory clientUrl, uint256 syncId) public {
@@ -318,64 +341,29 @@ contract Station is Initializable {
         emit UpdateStation(stationId, clientUrl, "update_station_location");
     }
 
-
-    function updateStationAddress(string memory clientUrl, string calldata _address) public {
+    function updateStationField(string memory clientUrl, string calldata value, uint key) public {
         uint256 stationId = ClientUrlById[clientUrl];
 
         if(Stations[stationId].Owner != msg.sender)
             revert("access_denied");
 
-        Stations[stationId].Address = _address;
+        if(key == 1)
+            Stations[stationId].Name = value;
 
-        emit UpdateStation(stationId, clientUrl, "update_station_address");
+        if(key == 2)
+            Stations[stationId].Address = value;
+
+        if(key == 3)
+            Stations[stationId].Time = value;
+
+        if(key == 4)
+            Stations[stationId].Description = value;
+
+        if(key == 5)
+            Stations[stationId].Url = value;
+            
+        emit UpdateStation(stationId, clientUrl, "update_station");
     }
-
-    function updateStationTime(string memory clientUrl, string calldata time) public  {
-        uint256 stationId = ClientUrlById[clientUrl];
-
-        if(Stations[stationId].Owner != msg.sender)
-            revert("access_denied");
-
-        Stations[stationId].Time = time;
-
-        emit UpdateStation(stationId, clientUrl, "update_station_time");
-    }
-
-    function updateStationDescription(string memory clientUrl, string calldata desc) public{
-        uint256 stationId = ClientUrlById[clientUrl];
-        
-        if(Stations[stationId].Owner != msg.sender)
-            revert("access_denied");
-
-        Stations[stationId].Description = desc;
-
-        emit UpdateStation(stationId, clientUrl, "update_station_description");
-    }
-
-
-    function updateStationUrl(string memory clientUrl, string calldata url) public  {
-        uint256 stationId = ClientUrlById[clientUrl];
-
-        if(Stations[stationId].Owner != msg.sender)
-            revert("access_denied");
-
-        Stations[stationId].Url = url;
-
-        emit UpdateStation(stationId, clientUrl, "update_station_url");
-    }
-
-    function updateStationType(string memory clientUrl, int _type) public  {
-        uint256 stationId = ClientUrlById[clientUrl];
-
-        if(Stations[stationId].Owner != msg.sender)
-            revert("access_denied");
-
-        Stations[stationId].Type = _type;
-
-        emit UpdateStation(stationId, clientUrl, "update_station_type");
-    }
-
-
 
     function setState(string memory clientUrl, bool state) public {
         uint256 stationId = ClientUrlById[clientUrl];
