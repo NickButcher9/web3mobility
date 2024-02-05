@@ -6,6 +6,9 @@ typechain
 typechain-types
 .mnemonic
 proxy_adresses.json
+authorityDev_proxy_adresses.json
+authorityLocal_proxy_adresses.json
+authorityProduction_proxy_adresses.json
 .openzeppelin
 #Hardhat files
 cache

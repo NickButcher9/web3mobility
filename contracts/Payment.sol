@@ -40,7 +40,7 @@ contract Payment is Initializable  {
         uint8 currency; 
         address owner; 
         PriceComponents[3] price_components;
-        //uint256 syncId;
+        uint256 SyncId;
     }
 
     struct PriceComponents {
@@ -102,6 +102,7 @@ contract Payment is Initializable  {
 
     mapping(uint256 => Tariff) tariffs;
     mapping(uint256 => Invoice) invoices;   
+    mapping(address => mapping (uint256 => uint256)) syncIdRelationTariffIdByPartner;
 
     event AddTariff(uint256 indexed tariffId);
     event UpdateTariff(uint256 indexed tariffId);
@@ -124,15 +125,32 @@ contract Payment is Initializable  {
         if(!_hub.isPartner(msg.sender))
             revert("access_denied");
 
+
+        if( syncIdRelationTariffIdByPartner[_tariff.owner][_tariff.SyncId] > 0)
+            revert("already_exist");
+
         tariffsCount++;
 
         tariffs[tariffsCount] = _tariff;
+
+        syncIdRelationTariffIdByPartner[_tariff.owner][_tariff.SyncId] = tariffsCount;
 
         emit AddTariff(tariffsCount);
     }
 
     function getTariff(uint256 id) public view returns (Tariff memory){
         return tariffs[id];
+    }
+
+    function getTariffBySyncId(uint256 id) public view returns (Tariff memory, uint256){
+
+        
+        uint256 tariffid = syncIdRelationTariffIdByPartner[msg.sender][id];
+
+        if(tariffid == 0)
+            revert("not_found");
+
+        return (tariffs[tariffid],tariffid);
     }
 
     function updateTariff(uint256 id, Tariff calldata _tariff) public { 

@@ -14,6 +14,9 @@ contract HUB is Initializable, OwnableUpgradeable {
     struct Partner {
         string name;
         bool active;
+        string role;
+        string webhookurl;
+        string webhooktoken;
     }
 
     mapping(address => Partner) partners;
@@ -21,21 +24,42 @@ contract HUB is Initializable, OwnableUpgradeable {
 
     function initialize() public initializer {
         __Ownable_init();
-        addPartner(msg.sender, "PortalEnergy");
+        addPartner(msg.sender, "PortalEnergy", "partner");
     }
 
-    function addPartner(address partner, string memory name) public onlyOwner {
+    function addPartner(address partner, string memory name, string memory role) public onlyOwner {
 
         if(keccak256(abi.encodePacked(name)) == keccak256(abi.encodePacked("")))
             revert("name_required");
 
         partners[partner].name = name;
         partners[partner].active = true;
+        partners[partner].role = role;
         partnersIndex.push(partner);
     }
 
     function removePartner(address partner) public onlyOwner {
         partners[partner].active = false;
+    }
+
+    function updateRole(address partner, string memory role) public onlyOwner {
+        partners[partner].role = role;
+    }
+
+    function updateWebHookUrl(string memory webhookurl) public {
+
+        if(partners[msg.sender].active == false )
+            revert("access_denied");
+
+        partners[msg.sender].webhookurl = webhookurl;
+    }
+
+    function updateWebHookToken(string memory token) public {
+
+        if(partners[msg.sender].active == false )
+            revert("access_denied");
+
+        partners[msg.sender].webhooktoken = token;
     }
 
     function isPartner(address partner) public view returns(bool){
@@ -46,8 +70,16 @@ contract HUB is Initializable, OwnableUpgradeable {
         return partnersIndex;
     }
 
-    function getPartner(address partner) public view returns(Partner memory){
-        return partners[partner];
+    function getPartner(address partner) public view returns(string memory, bool, string memory){
+        return (partners[partner].name,partners[partner].active,partners[partner].role);
     }
+
+
+    function me() public view returns(Partner memory){
+        //if(partners[msg.sender].active == false )
+        //    revert("access_denied");
+        return partners[msg.sender];
+    }
+
 
 }
