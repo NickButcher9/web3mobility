@@ -451,7 +451,7 @@ task("isactive","")
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
-  defaultNetwork: "authorityLocal",
+  defaultNetwork: "hardhat",
   networks: {
     hardhat: {
       //allowUnlimitedContractSize: true

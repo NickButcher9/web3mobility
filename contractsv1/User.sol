@@ -5,6 +5,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
 library UserStructs {
+    
     struct Fields {
         uint256 Id;
         address Address;
@@ -17,6 +18,12 @@ library UserStructs {
         bool PhoneVerifyed;
     }
 
+    struct AuthToken {
+        uint256 DateStart;
+        uint256 DateExpired;
+        string Token;
+    }
+
     struct Company {
         uint256 Id;
         string Name;
@@ -24,7 +31,7 @@ library UserStructs {
         uint256 Meta;
     }
 
-    struct RUCompanyMeta {
+    struct CompanyMeta {
         uint256 Id;
         uint256 Inn;
         uint256 Kpp;

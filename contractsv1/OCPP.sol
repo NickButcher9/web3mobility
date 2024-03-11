@@ -3,94 +3,66 @@ pragma solidity ^0.8.12;
 
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "./HUB.sol";
+import "../Hub/HUB.sol";
 import "hardhat/console.sol";
 
 library StationStruct {
 
     struct Connectors {
+        uint256 Id;
+        uint256 StationId;
+        uint256 SyncId;
+        uint256 LastUpdated;
         int Power; // kW 
         int ConnectorId;
-        int connectorType; //
-        int Status; // 1 - avaliable, 2 - preparing, 3 - charging, 4 - finished, 5 - error
+        int ConnectorType;
+        int Status; 
         int ErrorCode;
-        uint Tariff;
+        uint256 Tariff;
         bool IsHaveLock;
 
     }
 
-    int constant Type1 = 1;
-    int constant Type2 = 2;
-    int constant Chademo = 3;
-    int constant CCS1 = 4;
-    int constant CCS2 = 5;
-    int constant GBTDC = 6;
-    int constant GBTAC = 7;
-
-    int constant ConnectorLockFailure = 1;
-    int constant EVCommunicationError = 2;
-    int constant GroundFailure = 3;
-    int constant HighTemperature = 4;
-    int constant InternalError = 5;
-    int constant LocalListConflict = 6;
-    int constant NoError = 7;
-    int constant OtherError = 8;
-    int constant OverCurrentFailure = 9;
-    int constant PowerMeterFailure = 10;
-    int constant PowerSwitchFailure = 11;
-    int constant ReaderFailure = 12;
-    int constant ResetFailure = 13;
-    int constant UnderVoltage = 14;
-    int constant OverVoltage = 15;
-    int constant WeakSignalint = 16;
-
-
-    int constant Available =  1;
-    int constant Preparing = 2;
-    int constant Charging = 3;
-    int constant SuspendedEVSE = 4;
-    int constant SuspendedEV = 5;
-    int constant Finishing = 6;
-    int constant Reserved = 7;
-    int constant Unavailable = 8;
-    int constant Faulted = 9;
 
 
     bool constant Active = true;
     bool constant InActive = false;
 
     struct Fields {
-
-        string Name;
+        uint256 Id;
+        int Power;
+        int FloorLevel; // 
         string LocationLat;
         string LocationLon;
-        string Address;
-        string Time;
-        string Description;
-        string Url;
-        int Power;
-
         string ClientUrl;
-        address Owner;        
+        address Owner;     
+        string PhysicalReference;
+        Directions[] Directions;
+        StatusSchedule StatusSchedule;
+        Capabilities[] Capabilities; 
+        Image[] Images;
         string ChargePointModel;
         string ChargePointVendor;
         string ChargeBoxSerialNumber;
         string FirmwareVersion;
-        bool IsActive;
-        bool State; 
+        bool Online;
+        bool InOperation; 
 
         int Type; // 1 = AC, 2 = DC, 3 = Mixed
         uint256 OcppInterval;
-        uint256 Heartbeat;
-        Connectors[] Connectors;
-        uint256 OfflineCounter;
+        uint256 Heartbeat; // lastUpdated;
+        //Connectors[] uint256;
         uint256 SyncId;
+        uint256 LastUpdated;
     }
+
+
 }
 
 
 contract Station is Initializable {
     mapping (uint256 => StationStruct.Fields)  Stations;
+    mapping (uint256 => StationStruct.Fields)  Connectors;
     mapping (string => uint256) ClientUrlById;
     mapping (address => uint256[]) stationPartners;
 
@@ -99,17 +71,17 @@ contract Station is Initializable {
     string version;
     string[] stationIndexClientUrl;
 
-    event BootNotification(uint256 indexed stationId, string clientUrl, uint256 timestamp);
-    event StatusNotification(uint256 indexed stationId, string clientUrl, int connectorId, int status, int errorCode );
-    event Heartbeat(uint256 indexed stationId, string clientUrl, uint256 timestamp);
-    event ChangeStateStation(uint256 indexed stationId, string clientUrl, bool state);
-    event ChangeIsActiveStation(uint256 indexed stationId, string clientUrl, bool state);
-    event AddStation(uint256 indexed stationId, string clientUrl);
-    event UpdateStation(uint256 indexed stationId, string clientUrl, string change);
+    event BootNotification(uint256 indexed stationId, bytes32 indexed clientUrl, uint256 indexed timestamp);
+    event StatusNotification(uint256 indexed stationId, bytes32 indexed clientUrl, int indexed connectorId, int indexed status, int indexed errorCode, uint256 indexed timestamp );
+    event Heartbeat(uint256 indexed stationId, bytes32 indexed clientUrl, uint256 indexed timestamp);
+    event ChangeStateStation(uint256 indexed stationId, bytes32 indexed clientUrl, bool state, uint256 indexed timestamp);
+    event ChangeIsActiveStation(uint256 indexed stationId, bytes32 indexed clientUrl, bool state, uint256 indexed timestamp);
+    event AddStation(uint256 indexed stationId, bytes32 indexed clientUrl, address indexed owner, uint256 indexed timestamp);
+    event UpdateStation(uint256 indexed stationId, bytes32 indexed clientUrl, bytes32 indexed change, uint256 indexed timestamp);
 
     function initialize(address hubContract) public initializer {
         _hub = HUB(hubContract);
-        version = "1.1";
+        version = "1.3";
     }
 
     function getVersion() public view returns(string memory){
@@ -122,6 +94,7 @@ contract Station is Initializable {
             revert("access_denied");
         
         require(station.Owner == msg.sender, "owner_incorrect");
+
              
         if(ClientUrlById[station.ClientUrl] > 0)
             revert("already_exist");
@@ -178,22 +151,6 @@ contract Station is Initializable {
         return stationIndex;
     }
 
-    function getContStationTypes() public view returns(uint256,uint256){
-        uint256  dcType = 0;
-        uint256  acType = 0;
-
-        
-        for (uint256 index = 1; index <= stationIndex; index++) {
-            
-           if( Stations[index].Type == 1){
-                acType++;
-           }else if(Stations[index].Type == 2){
-                dcType++;
-           }
-        }
-
-        return (dcType,acType);
-    }
 
     function getStationIndexClientUrl() public view returns(string[] memory){
         return stationIndexClientUrl;
